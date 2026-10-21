@@ -86,6 +86,16 @@ textarea{width:100%;min-height:80px;background:var(--soft);color:var(--ink);bord
 #mres{text-align:center;margin-top:10px}
 #mres .big{font-size:28px;font-weight:900;margin:4px 0}
 #mres .big.ok{color:var(--mintD)}#mres .big.no{color:#b5523b}
+.bcan{display:block;width:100%;max-width:480px;height:auto;margin:10px auto 0;border:3px solid var(--gold);background:#fbf9ff;touch-action:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.chip2{padding:6px 12px;background:var(--soft);box-shadow:0 0 0 2px var(--line);font-weight:800;color:var(--violetD)}
+.chip2.on{background:#e4f6ef;box-shadow:0 0 0 2px var(--mint);color:var(--mintD)}
+.hp{height:12px;background:#f8e3e8;box-shadow:0 0 0 2px #ecbfca;margin:6px 0}
+.hp span{display:block;height:100%;background:#d6566e;transition:width .5s}
+.numin{font:inherit;font-size:20px;width:110px;padding:8px 10px;border:0;box-shadow:inset 0 0 0 2px var(--violet);background:#fff;color:var(--ink);text-align:center}
+.bigres{font-size:28px;font-weight:900;margin:8px 0 4px;text-align:center}
+.bigres.ok{color:var(--mintD)}.bigres.no{color:#b5523b}
+.center{text-align:center}
 @media(max-width:820px){.wrap{grid-template-columns:1fr}#student{width:100%}}
 </style></head><body>
 
@@ -152,6 +162,27 @@ textarea{width:100%;min-height:80px;background:var(--soft);color:var(--ink);bord
   <div id="mres" hidden></div>
 </div></div>
 
+<div id="boss1" class="modal" hidden><div class="box">
+  <div class="mhead"><span class="tag">魔王房間</span><span class="tname">組裝之間・破形魔王</span></div>
+  <p class="tiny">破形魔王把三角形打散了！拖曳 A、B、C 三個頂點，讓三條邊的長度符合目標。格線一格 = 1。</p>
+  <div id="b1goal"></div>
+  <div class="chips"><span class="tiny">目標邊長：</span><span id="b1chips" class="chips" style="margin:0"></span></div>
+  <canvas id="b1c" class="bcan" width="480" height="400"></canvas>
+  <div id="b1ctl" class="row"><button class="btn" onclick="b1Reset()">重新擺放</button><button class="btn" onclick="closeBoss1()">離開</button></div>
+  <div id="b1res" class="center" hidden></div>
+</div></div>
+
+<div id="boss2" class="modal" hidden><div class="box">
+  <div class="mhead"><span class="tag">魔王房間</span><span class="tname">角度之間・角度魔王</span></div>
+  <div class="row" style="margin-top:4px"><span class="tiny">角度魔王 HP</span><span id="b2hearts" class="tiny"></span></div>
+  <div class="hp"><span id="b2hp" style="width:100%"></span></div>
+  <canvas id="b2c" class="bcan" width="480" height="400"></canvas>
+  <div id="b2q"></div>
+  <div id="b2spells" class="spellbar"></div>
+  <div id="b2fb" aria-live="polite"></div>
+  <div class="row" id="b2ctl"><span></span><button class="btn" onclick="closeBoss2()">離開</button></div>
+</div></div>
+
 <script>
 // ===== 內容（題目、選項與正解與原版相同，只替換包裝）=====
 const SHAPES={
@@ -184,11 +215,11 @@ const TOWERS=[
 ];
 // 魔法：通過對應的塔後習得；試煉中與試煉場中都可施放
 const SPELLS=[
- {name:'直線結界',mage:'線之法師',quiz:'劃去一個錯誤選項',mini:'清除場上所有不符合的圖形或怪物'},
- {name:'數字透視',mage:'數之法師',quiz:'先看見魔法線索',mini:'時序減緩 4 秒'},
- {name:'鏡像護盾',mage:'對稱之法師',quiz:'答錯時，祭壇不會留下殘卷',mini:'擋下下一次碰撞或誤接'},
- {name:'幻影分身',mage:'幻影法師',quiz:'更換本題（同塔的另一題）',mini:'短暫無敵 3 秒'},
- {name:'真相之眼',mage:'證據之法師',quiz:'本題答對額外 +10 魔力',mini:'挑戰成功時額外 +20 魔力'}
+ {name:'直線結界',mage:'線之法師',quiz:'劃去一個錯誤選項',mini:'清除場上所有不符合的圖形或怪物',boss:'角度分類時劃去一個錯誤選項'},
+ {name:'數字透視',mage:'數之法師',quiz:'先看見魔法線索',mini:'時序減緩 4 秒',boss:'顯示角度提示'},
+ {name:'鏡像護盾',mage:'對稱之法師',quiz:'答錯時，祭壇不會留下殘卷',mini:'擋下下一次碰撞或誤接',boss:'擋下一次答錯的傷害'},
+ {name:'幻影分身',mage:'幻影法師',quiz:'更換本題（同塔的另一題）',mini:'短暫無敵 3 秒',boss:'多獲得一顆心'},
+ {name:'真相之眼',mage:'證據之法師',quiz:'本題答對額外 +10 魔力',mini:'挑戰成功時額外 +20 魔力',boss:'擊敗魔王時額外 +20 魔力'}
 ];
 const SPELL_COST=10;
 const MINI_ON=[false,true,false,true,false];   // 第二、第四座塔有試煉場
@@ -196,7 +227,7 @@ const TRI=[[1,1,1],[0,1,0],[0,0,1],[1,0,0],[0,0,0]];   // 卦爻：1 陽（實�
 const CN='一二三四五';
 const NUM={3:'三',4:'四',5:'五',6:'六'};
 const HUB=[
- "#1#2#3#4#5#####",
+ "#1#2#3#4#5##B##",
  "#.............#",
  "#......X......#",
  "#.#.#.#.#.#.#.#",
@@ -214,6 +245,32 @@ function makeTower(t){const rows=[];
  const put=(r,c,ch)=>{rows[r]=rows[r].slice(0,c)+ch+rows[r].slice(c+1)};
  put(1,6,'A');put(10,6,'G');if(MINI_ON[t])put(7,3,'M');return rows}
 const TGRID=TOWERS.map((_,t)=>makeTower(t));
+// 魔王之塔：左＝組裝之間（P），右＝角度之間（Q），D＝中間的封印門，G＝出口
+const BOSSGRID=[
+ "###############",
+ "#.....#.......#",
+ "#..P..#...Q...#",
+ "#.....#.......#",
+ "#.....D.......#",
+ "#.....#.......#",
+ "#.....#.......#",
+ "#..G..#.......#",
+ "###############"
+];
+// 三角形題庫（整數角度；邊長由正弦定理換算，L＝最長邊的候選長度）
+const TRI_TYPES=[
+ {type:'正三角形',ang:[60,60,60],L:[3,4,5]},
+ {type:'等腰直角三角形',ang:[90,45,45],L:[4.2,5.7]},
+ {type:'直角三角形',ang:[90,60,30],L:[4,6]},
+ {type:'直角三角形',ang:[90,70,20],L:[6]},
+ {type:'等腰三角形（鈍角）',ang:[120,30,30],L:[5.2,6.9]},
+ {type:'等腰三角形（銳角）',ang:[40,70,70],L:[5]},
+ {type:'等腰三角形（銳角）',ang:[80,50,50],L:[5.1]},
+ {type:'銳角三角形',ang:[70,60,50],L:[5.6]},
+ {type:'鈍角三角形',ang:[105,45,30],L:[5.8]}
+];
+const DEG=Math.PI/180,VN=['A','B','C'],CLS=['銳角三角形','直角三角形','鈍角三角形'];
+const BW=480,BH=400,BU=40,TOL=0.15;
 
 // ===== 亮色調色盤 =====
 const C={
@@ -268,8 +325,8 @@ function drawMageWorld(bx,by){
  R(ctx,U,bx,by,sx,4+dy,1,12,'#b07a4a');
  R(ctx,U,bx,by,stx,0+dy,2,2,'#fff3b0');
  R(ctx,U,bx,by,stx,0+dy,2,1,'#f2c46b')}
-function drawFloor(bx,by,gx,gy,hub){
- R(ctx,U,bx,by,0,0,16,16,hub?C.hubFloor:C.towerFloor);
+function drawFloor(bx,by,gx,gy,hub,boss){
+ R(ctx,U,bx,by,0,0,16,16,boss?'#fbeef2':hub?C.hubFloor:C.towerFloor);
  if(hash(gx,gy,1)>.4)R(ctx,U,bx,by,Math.floor(hash(gx,gy,2)*13)+1,Math.floor(hash(gx,gy,3)*13)+1,1,1,C.speck);
  if(hub){R(ctx,U,bx,by,0,0,16,1,C.seam);R(ctx,U,bx,by,0,0,1,16,C.seam)}
  else{
@@ -326,12 +383,38 @@ function drawMiniAltar(bx,by){
  else{polyPath(ctx,cx,cy,4,15,Math.PI/4+now*.4);ctx.stroke()}
  ctx.fillStyle=col;ctx.font='bold 11px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText(done?'✓':'試',cx,cy+4)}
 
+// ===== 魔王之塔的地圖物件 =====
+const BOSS_PAL={...MAGE_PAL,H:'#d6566e',h:'#9a2f48',b:'#6a2340',g:'#f2c46b',k:'#f7d2b0'};
+function drawBossSprite(c,u,bx,by){drawSprite(c,u,bx,by,MAGE_ROWS,BOSS_PAL);
+ R(c,u,bx,by,4,0,1,2,'#f2c46b');R(c,u,bx,by,11,0,1,2,'#f2c46b');R(c,u,bx,by,3,0,1,1,'#f2c46b');R(c,u,bx,by,12,0,1,1,'#f2c46b')}
+function bossGateState(){if(!fiveDone())return'lock';return S.run.boss.done?'done':'open'}
+function drawBossGate(bx,by){const st=bossGateState();
+ const col=st==='lock'?C.locked:(st==='open'?'#d6566e':C.mint);
+ R(ctx,U,bx,by,2,1,12,2,C.stone);R(ctx,U,bx,by,2,3,2,12,C.stone);R(ctx,U,bx,by,12,3,2,12,C.stone);
+ R(ctx,U,bx,by,4,3,8,12,C.opening);if(st!=='lock')R(ctx,U,bx,by,4,3,8,12,col+'33');
+ R(ctx,U,bx,by,0,15,16,1,C.stoneD);
+ ctx.fillStyle=col;ctx.font='bold 16px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText('魔',bx+24,by+32)}
+function drawBossAltar(bx,by,which){const b=S.run.boss,now=performance.now()/1000;
+ const done=which==='P'?b.built:b.done;const locked=which==='Q'&&!b.built;
+ const cx=bx+24,cy=by+24;
+ ctx.fillStyle=done?'#e4f6ef':locked?'#efedf5':'#fde6ea';ctx.beginPath();ctx.arc(cx,cy,21,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle=done?C.mint:locked?C.locked:'#d6566e';ctx.lineWidth=3;
+ ctx.beginPath();ctx.arc(cx,cy,21+(done||locked?0:Math.sin(now*4)*1.5),0,Math.PI*2);ctx.stroke();
+ if(done){ctx.fillStyle=C.mintD;ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.fillText('✓',cx,cy+6)}
+ else{if(locked)ctx.globalAlpha=.4;drawBossSprite(ctx,2,bx+8,by+6+(locked?0:Math.round(Math.sin(now*3)))) ;ctx.globalAlpha=1}}
+function drawBossDoor(bx,by){
+ if(S.run.boss.built){R(ctx,U,bx,by,0,0,2,16,C.stone);R(ctx,U,bx,by,14,0,2,16,C.stone);R(ctx,U,bx,by,2,0,12,2,C.stone);return}
+ drawWall(bx,by,6,4);
+ ctx.strokeStyle='#d6566e';ctx.lineWidth=2;ctx.beginPath();ctx.arc(bx+24,by+24,15,0,Math.PI*2);ctx.stroke();
+ ctx.fillStyle='#d6566e';ctx.font='bold 13px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText('封',bx+24,by+29)}
+
 // ===== 狀態與存檔 =====
 const KEY='polygon-magic-rpg-v1';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuffle=a=>a.map(x=>({x,r:Math.random()})).sort((p,q)=>p.r-q.r).map(o=>o.x);
-function fresh(){return{score:0,base:0,bonus:0,repair:0,minipts:0,mp:0,doubleUsed:false,
+function fresh(){return{score:0,base:0,bonus:0,repair:0,minipts:0,bosspts:0,mp:0,doubleUsed:false,
+  boss:{ch:null,built:false,step:1,done:false},
   status:['todo','todo','todo','todo','todo'],remainId:[null,null,null,null,null],
   mini:[false,false,false,false,false],spells:[false,false,false,false,false],
   records:[],awarded:false,coins:0,finished:false,started:new Date().toISOString()}}
@@ -342,6 +425,8 @@ function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');
      if(!Array.isArray(r.spells))r.spells=f.spells;
      if(typeof r.mp!=='number')r.mp=0;
      if(typeof r.minipts!=='number')r.minipts=0;
+     if(typeof r.bosspts!=='number')r.bosspts=0;
+     if(!r.boss||typeof r.boss!=='object')r.boss=f.boss;
      return d}}catch(e){}
  return{stars:0,run:fresh(),loc:'hub',x:7,y:7,student:''}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -351,7 +436,8 @@ const MG_W=480,MG_H=400;
 const rankOf=s=>s>=100?'大法師':s>=60?'正式法師':s>=40?'見習法師':'學徒';
 const coinsOf=s=>s>=100?5:s>=80?4:s>=60?3:s>=40?2:1;
 function towerDone(i){return S.run.status[i]!=='todo'&&(!MINI_ON[i]||S.run.mini[i])}
-function allDone(){return TOWERS.every((_,i)=>towerDone(i))}
+function fiveDone(){return TOWERS.every((_,i)=>towerDone(i))}
+function allDone(){return fiveDone()&&S.run.boss.done}
 function mastery(i){const rs=S.run.records.filter(x=>x.tower===i+1&&x.mode!=='mini');const m=rs.find(x=>x.mode==='main');const rp=rs.some(x=>x.mode==='repair'&&x.ok);
  if(!m)return'未挑戰';if(m.ok)return'✅ 已掌握';if(rp)return'🔁 補練後掌握';return'🌱 需要再複習'}
 
@@ -366,22 +452,25 @@ function icon(name){const I=ICONS[name];let rects='';
 function msg(t){const m=$('msg');m.textContent=t;m.classList.add('show');clearTimeout(msgT);msgT=setTimeout(()=>m.classList.remove('show'),2800)}
 function hud(){const r=S.run;
  $('score').textContent=r.score;$('mp').textContent=r.mp;$('stars').innerHTML=icon('star')+' '+S.stars;$('rank').textContent=rankOf(r.score);
- $('place').textContent=S.loc==='hub'?'◆ 學院中庭':`◆ 第${S.loc+1}塔 · ${TOWERS[S.loc].name}（${TOWERS[S.loc].mage}）`;
+ $('place').textContent=S.loc==='hub'?'◆ 學院中庭':S.loc==='boss'?`◆ 魔王之塔 · ${S.x<6?'組裝之間（破形魔王）':'角度之間（角度魔王）'}`:`◆ 第${S.loc+1}塔 · ${TOWERS[S.loc].name}（${TOWERS[S.loc].mage}）`;
  const doneCount=TOWERS.filter((_,i)=>towerDone(i)).length;
  $('towers').innerHTML=TOWERS.map((T,i)=>{const st=r.status[i];const done=towerDone(i);
    const cls=done?'ok':(st==='remain'?'remain':'todo');
    const lab=done?'已通過':(st==='remain'?'殘卷待補練':st==='todo'?'未攻破':'待完成試煉場');
-   return `<div class="trow"><span class="sq ${cls}"></span><span>第${i+1}塔　${esc(T.mage)}</span><span class="tiny">${lab}</span></div>`}).join('')+`<p class="tiny">已通過 ${doneCount} / 5 座塔</p>`;
+   return `<div class="trow"><span class="sq ${cls}"></span><span>第${i+1}塔　${esc(T.mage)}</span><span class="tiny">${lab}</span></div>`}).join('')
+   +(()=>{const b=r.boss;const lab=b.done?'已擊敗':b.built?'待挑戰角度之間':fiveDone()?'可挑戰':'未解鎖';
+     return `<div class="trow"><span class="sq ${b.done?'ok':'remain'}"></span><span>魔王之塔</span><span class="tiny">${lab}</span></div>`})()
+   +`<p class="tiny">已通過 ${doneCount} / 5 座塔</p>`;
  $('spells').innerHTML=SPELLS.map((sp,i)=>{const on=r.spells[i];
-   return `<div class="spell ${on?'on':''}"><b>${sp.name}</b>　<span class="tiny">${on?'可施放':'通過第'+(i+1)+'塔後習得'}</span><div class="tiny">試煉中：${esc(sp.quiz)}<br>試煉場：${esc(sp.mini)}</div></div>`}).join('')}
+   return `<div class="spell ${on?'on':''}"><b>${sp.name}</b>　<span class="tiny">${on?'可施放':'通過第'+(i+1)+'塔後習得'}</span><div class="tiny">試煉中：${esc(sp.quiz)}<br>試煉場：${esc(sp.mini)}<br>魔王房：${esc(sp.boss)}</div></div>`}).join('')}
 function checkUnlocks(){const r=S.run;const got=[];
  for(let i=0;i<5;i++){if(!r.spells[i]&&towerDone(i)){r.spells[i]=true;got.push(SPELLS[i].name)}}
  if(got.length)msg('習得魔法：'+got.join('、')+'。可在試煉中施放！');
  save();hud()}
 
 // ===== 移動與互動 =====
-function grid(){return S.loc==='hub'?HUB:TGRID[S.loc]}
-function isOpen(){return !$('modal').hidden||!$('mini').hidden}
+function grid(){return S.loc==='hub'?HUB:S.loc==='boss'?BOSSGRID:TGRID[S.loc]}
+function isOpen(){return ['modal','mini','boss1','boss2'].some(id=>!$(id).hidden)}
 function move(dx,dy){if(titleOpen||isOpen()||Q)return;
  face=dx<0?'left':dx>0?'right':dy<0?'up':'down';
  const g=grid(),nx=S.x+dx,ny=S.y+dy;
@@ -392,6 +481,14 @@ function move(dx,dy){if(titleOpen||isOpen()||Q)return;
    if(t>0&&!towerDone(t-1)){msg(`城門封鎖中：需先通過第${t}座塔。`);return}
    S.x=nx;S.y=ny;enterTower(t);return}
  if(S.loc==='hub'&&ch==='X'){S.x=nx;S.y=ny;save();showSummary(false);return}
+ if(S.loc==='hub'&&ch==='B'){if(!fiveDone()){msg('魔王之塔被封印：先通過五座塔。');return}
+   S.x=nx;S.y=ny;S.loc='boss';S.x=3;S.y=6;save();hud();msg('踏入魔王之塔。左邊是組裝之間，右邊是角度之間。');return}
+ if(S.loc==='boss'){
+   if(ch==='G'){S.loc='hub';S.x=12;S.y=1;save();hud();msg('回到學院中庭。');return}
+   if(ch==='D'&&!S.run.boss.built){msg('角度之間的門被封印：先在組裝之間把三角形組好。');return}
+   S.x=nx;S.y=ny;save();hud();
+   if(ch==='P')openBoss1();else if(ch==='Q')openBoss2();
+   return}
  if(S.loc!=='hub'&&ch==='G'){const t=S.loc;S.loc='hub';S.x=1+2*t;S.y=1;save();hud();msg('回到學院中庭。');return}
  S.x=nx;S.y=ny;
  if(S.loc!=='hub'&&ch==='A'){save();hud();altar(S.loc);return}
@@ -617,22 +714,232 @@ function miniPaint(){const c=$('mc').getContext('2d');c.imageSmoothingEnabled=fa
  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{if(MG)MG.dir=0}))});
 $('mc').addEventListener('pointermove',e=>{if(!MG||MG.phase!=='run')return;const rc=$('mc').getBoundingClientRect();MG.px=(e.clientX-rc.left)*(MG_W/rc.width)});
 
+// ===== 魔王之塔：共用幾何 =====
+const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function newChallenge(){
+ const pool=TRI_TYPES.map((_,i)=>i).filter(i=>i!==S.lastBossType);
+ const ti=pool[Math.floor(Math.random()*pool.length)],T=TRI_TYPES[ti];
+ const L=T.L[Math.floor(Math.random()*T.L.length)];
+ const mx=Math.max(...T.ang.map(a=>Math.sin(a*DEG)));
+ const sides=T.ang.map(a=>Math.round(L*Math.sin(a*DEG)/mx*10)/10);   // sides[i] 是 ∠i 的對邊
+ S.lastBossType=ti;
+ return{ti,type:T.type,ang:T.ang.slice(),L,sides,hidden:Math.floor(Math.random()*3)}}
+function exactSides(ch){const mx=Math.max(...ch.ang.map(a=>Math.sin(a*DEG)));return ch.ang.map(a=>ch.L*Math.sin(a*DEG)/mx)}
+function canonPts(ch){const e=exactSides(ch),A=ch.ang[0]*DEG;
+ const p=[{x:0,y:0},{x:e[2],y:0},{x:e[1]*Math.cos(A),y:-e[1]*Math.sin(A)}];
+ const xs=p.map(q=>q.x),ys=p.map(q=>q.y),minx=Math.min(...xs),miny=Math.min(...ys);
+ const w=Math.max(...xs)-minx,h=Math.max(...ys)-miny,s=Math.min(320/w,240/h,70);
+ const ox=BW/2-(minx+w/2)*s,oy=BH/2+20-(miny+h/2)*s;
+ return p.map(q=>({x:q.x*s+ox,y:q.y*s+oy}))}
+const classify=ch=>{const m=Math.max(...ch.ang);return m>90?'鈍角三角形':m===90?'直角三角形':'銳角三角形'};
+function gridBg(c){c.fillStyle='#fbf9ff';c.fillRect(0,0,BW,BH);
+ c.strokeStyle='rgba(122,92,214,.12)';c.lineWidth=1;
+ for(let x=0;x<=BW;x+=BU){c.beginPath();c.moveTo(x+.5,0);c.lineTo(x+.5,BH);c.stroke()}
+ for(let y=0;y<=BH;y+=BU){c.beginPath();c.moveTo(0,y+.5);c.lineTo(BW,y+.5);c.stroke()}
+ c.fillStyle='rgba(122,92,214,.35)';for(let x=0;x<=BW;x+=BU)for(let y=0;y<=BH;y+=BU)c.fillRect(x-1,y-1,3,3)}
+function triPath(c,p){c.beginPath();c.moveTo(p[0].x,p[0].y);c.lineTo(p[1].x,p[1].y);c.lineTo(p[2].x,p[2].y);c.closePath()}
+function label(c,text,x,y,col,bg){c.font='bold 15px "Noto Sans TC",sans-serif';c.textAlign='center';
+ const w=c.measureText(text).width+10;c.fillStyle=bg||'rgba(255,255,255,.9)';c.fillRect(x-w/2,y-12,w,22);c.fillStyle=col;c.fillText(text,x,y+4)}
+// 角弧：prog[i] 為 0–1 的繪製進度；hidden 的角顯示「?」，solved 後顯示綠色度數
+function drawAngles(c,p,ch,prog,solved,now){
+ for(let i=0;i<3;i++){const g=prog[i];if(g<=0)continue;
+   const V=p[i],P=p[(i+1)%3],Q=p[(i+2)%3];
+   const a1=Math.atan2(P.y-V.y,P.x-V.x),a2=Math.atan2(Q.y-V.y,Q.x-V.x);
+   let d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+   const hid=i===ch.hidden,ask=hid&&!solved;
+   const col=ask?'#d6566e':(hid?C.mintD:C.violetD);
+   c.strokeStyle=col;c.lineWidth=3;
+   if(ch.ang[i]===90&&!ask){const l1=Math.hypot(P.x-V.x,P.y-V.y),l2=Math.hypot(Q.x-V.x,Q.y-V.y);
+     const u1={x:(P.x-V.x)/l1,y:(P.y-V.y)/l1},u2={x:(Q.x-V.x)/l2,y:(Q.y-V.y)/l2},k=16*g;
+     c.beginPath();c.moveTo(V.x+u1.x*k,V.y+u1.y*k);c.lineTo(V.x+(u1.x+u2.x)*k,V.y+(u1.y+u2.y)*k);c.lineTo(V.x+u2.x*k,V.y+u2.y*k);c.stroke()}
+   else{const r=ch.ang[i]<35?36:24;c.beginPath();c.arc(V.x,V.y,r,a1,a1+d*g,d<0);c.stroke()}
+   if(g>=1){const bis=a1+d/2,lr=ch.ang[i]<35?62:50;const lx=V.x+Math.cos(bis)*lr,ly=V.y+Math.sin(bis)*lr;
+     if(ask){const s=1+.15*Math.sin(now*6);c.save();c.translate(lx,ly);c.scale(s,s);label(c,'?',0,0,'#fff','#d6566e');c.restore()}
+     else label(c,ch.ang[i]+'°',lx,ly,col)}
+ }}
+function vertexLabels(c,p){const cx=(p[0].x+p[1].x+p[2].x)/3,cy=(p[0].y+p[1].y+p[2].y)/3;
+ p.forEach((q,i)=>{const dx=q.x-cx,dy=q.y-cy,l=Math.hypot(dx,dy)||1;
+   c.fillStyle=C.ink;c.font='bold 16px "Noto Sans TC",sans-serif';c.textAlign='center';c.fillText(VN[i],q.x+dx/l*20,q.y+dy/l*20+6)})}
+function confetti(n){const a=[];for(let k=0;k<n;k++)a.push({x:BW/2,y:BH/2,vx:(Math.random()-.5)*420,vy:-Math.random()*380-60,c:[C.gold,C.mint,C.violet,'#ff9fc2','#ffe08a'][k%5],s:4+Math.floor(Math.random()*4)});return a}
+function drawConfetti(c,parts,el){const t=Math.min(el,2);parts.forEach(q=>{c.fillStyle=q.c;c.fillRect(q.x+q.vx*t,q.y+q.vy*t+190*t*t,q.s,q.s)})}
+function banner(c,title,sub,ok,el){const bw=360,bh=sub?88:64,bx=(BW-bw)/2,by=BH/2-bh/2-10+(el<.3?(1-el/.3)*-30:0);
+ c.fillStyle=ok?'#fff8e6':'#fdf0f2';c.fillRect(bx,by,bw,bh);c.strokeStyle=ok?C.gold:'#d07a8c';c.lineWidth=4;c.strokeRect(bx+2,by+2,bw-4,bh-4);
+ c.fillStyle=ok?C.mintD:'#b5523b';c.font='bold 28px "Noto Sans TC",sans-serif';c.textAlign='center';c.fillText(title,BW/2,by+44);
+ if(sub){c.fillStyle=C.violetD;c.font='bold 15px "Noto Sans TC",sans-serif';c.fillText(sub,BW/2,by+72)}}
+
+// ===== 房間一：組裝之間 =====
+let B1=null;
+const b1c=$('b1c');
+function b1Fresh(){return[{x:3,y:8.5},{x:5,y:8.5},{x:4,y:7}]}
+function openBoss1(){const b=S.run.boss;
+ if(b.built){msg('三角形已經組好了，往右走，前往角度之間。');return}
+ if(!b.ch){b.ch=newChallenge();save()}
+ B1={pts:b1Fresh(),drag:-1,phase:'build',t0:0,resets:0,id:Date.now(),from:null,to:null,parts:[]};
+ $('b1goal').innerHTML=`<h2>做出一個 ${esc(b.ch.type)}</h2>`;
+ $('b1ctl').hidden=false;$('b1res').hidden=true;$('b1res').innerHTML='';
+ $('boss1').hidden=false;b1Chips();b1Loop(B1.id)}
+function b1Reset(){if(!B1||B1.phase!=='build')return;B1.pts=b1Fresh();B1.resets++;b1Chips()}
+function b1Sides(){const p=B1.pts;return[dist(p[1],p[2]),dist(p[2],p[0]),dist(p[0],p[1])]}   // 對邊：BC、CA、AB
+function b1Match(){const tg=S.run.boss.ch.sides,used=[false,false,false];
+ const s=b1Sides();const ok=s.map(v=>{for(let i=0;i<3;i++)if(!used[i]&&Math.abs(v-tg[i])<=TOL){used[i]=true;return true}return false});
+ return{s,ok,used}}
+function b1Area(){const p=B1.pts;return Math.abs((p[1].x-p[0].x)*(p[2].y-p[0].y)-(p[2].x-p[0].x)*(p[1].y-p[0].y))/2}
+function b1Chips(){const m=b1Match();$('b1chips').innerHTML=S.run.boss.ch.sides.map((v,i)=>`<span class="chip2 ${m.used[i]?'on':''}">${v.toFixed(1)}</span>`).join('')}
+function cPos(cv,e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*(cv.width/r.width),y:(e.clientY-r.top)*(cv.height/r.height)}}
+b1c.addEventListener('pointerdown',e=>{if(!B1||B1.phase!=='build')return;const p=cPos(b1c,e);let best=-1,bd=28;
+ B1.pts.forEach((q,i)=>{const d=Math.hypot(q.x*BU-p.x,q.y*BU-p.y);if(d<bd){bd=d;best=i}});
+ if(best>=0){B1.drag=best;b1c.setPointerCapture(e.pointerId);e.preventDefault()}});
+b1c.addEventListener('pointermove',e=>{if(!B1||B1.drag<0)return;const p=cPos(b1c,e);
+ B1.pts[B1.drag]={x:Math.round(clamp(p.x/BU,.3,BW/BU-.3)*10)/10,y:Math.round(clamp(p.y/BU,.3,BH/BU-.3)*10)/10};b1Chips()});
+function b1Up(){if(!B1||B1.drag<0)return;B1.drag=-1;const m=b1Match();if(m.ok.every(Boolean)&&b1Area()>.5)b1Success()}
+['pointerup','pointercancel'].forEach(ev=>b1c.addEventListener(ev,b1Up));
+function b1Success(){const b=S.run.boss,r=S.run,e=exactSides(b.ch);
+ // 找出學生頂點與標準頂點的最佳對應
+ const perms=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];let best=perms[0],be=1e9;
+ perms.forEach(p=>{let err=0;for(let i=0;i<3;i++)err+=Math.abs(dist(B1.pts[p[(i+1)%3]],B1.pts[p[(i+2)%3]])-e[i]);if(err<be){be=err;best=p}});
+ B1.from=best.map(si=>({x:B1.pts[si].x*BU,y:B1.pts[si].y*BU}));B1.to=canonPts(b.ch);
+ B1.phase='anim';B1.t0=performance.now();B1.parts=confetti(40);
+ const s=b1Sides().map(v=>v.toFixed(1));
+ b.built=true;r.score+=30;r.bosspts+=30;r.mp+=10;
+ r.records.push({time:new Date().toISOString(),student:S.student||'',tower:6,tower_name:'魔王之塔・組裝之間',mage:'破形魔王',mode:'boss1',
+   question_id:'boss1-'+b.ch.ti,question:`組裝${b.ch.type}（邊長 ${b.ch.sides.join('、')}）`,options:'',
+   chosen:`組出邊長 ${s.join('、')}（重新擺放 ${B1.resets} 次）`,correct_answer:b.ch.sides.join('、'),ok:true,double:false,points:30});
+ $('b1ctl').hidden=true;save();hud()}
+function b1Loop(id){if(!B1||B1.id!==id)return;b1Draw();requestAnimationFrame(()=>b1Loop(id))}
+function b1Draw(){const c=b1c.getContext('2d'),now=performance.now()/1000;gridBg(c);
+ if(B1.phase==='build'){
+   const p=B1.pts.map(q=>({x:q.x*BU,y:q.y*BU})),m=b1Match();
+   triPath(c,p);c.fillStyle='rgba(243,210,122,.22)';c.fill();
+   const cx=(p[0].x+p[1].x+p[2].x)/3,cy=(p[0].y+p[1].y+p[2].y)/3;
+   for(let i=0;i<3;i++){const P=p[(i+1)%3],Q=p[(i+2)%3];
+     c.strokeStyle=m.ok[i]?C.mint:C.violet;c.lineWidth=m.ok[i]?6:4;c.beginPath();c.moveTo(P.x,P.y);c.lineTo(Q.x,Q.y);c.stroke();
+     const mx=(P.x+Q.x)/2,my=(P.y+Q.y)/2,dx=mx-cx,dy=my-cy,l=Math.hypot(dx,dy)||1;
+     label(c,m.s[i].toFixed(1),mx+dx/l*18,my+dy/l*18,m.ok[i]?C.mintD:C.violetD)}
+   p.forEach((q,i)=>{c.fillStyle=B1.drag===i?C.gold:C.violet;c.beginPath();c.arc(q.x,q.y,14,0,Math.PI*2);c.fill();
+     c.strokeStyle='#fff';c.lineWidth=3;c.stroke();c.fillStyle='#fff';c.font='bold 14px sans-serif';c.textAlign='center';c.fillText(VN[i],q.x,q.y+5)});
+   drawBossSprite(c,3,BW-60,8);
+   return}
+ // 組裝完成的動畫
+ const t=(performance.now()-B1.t0)/1000,ch=S.run.boss.ch;
+ const k=ease(clamp((t-.6)/1,0,1));
+ const p=B1.from.map((f,i)=>({x:f.x+(B1.to[i].x-f.x)*k,y:f.y+(B1.to[i].y-f.y)*k}));
+ if(t<1.6){c.fillStyle=`rgba(243,210,122,${.15+.12*Math.sin(t*12)})`;c.fillRect(0,0,BW,BH)}
+ triPath(c,p);c.fillStyle=`rgba(243,210,122,${t<.6?.3+.3*Math.sin(t*14):.35})`;c.fill();
+ c.strokeStyle=C.gold;c.lineWidth=5;triPath(c,p);c.stroke();
+ if(t<1.6)for(let s=0;s<14;s++){const a=s/14*Math.PI*2+t*3,R0=40+t*90;c.fillStyle=s%2?C.gold:'#fff3b0';
+   c.fillRect(BW/2+Math.cos(a)*R0-2,BH/2+Math.sin(a)*R0-2,4,4)}
+ if(t>1.6){drawAngles(c,p,ch,[0,1,2].map(i=>clamp((t-1.6-i*.4)/.4,0,1)),false,now);vertexLabels(c,p)}
+ if(t>3){const el=t-3;drawConfetti(c,B1.parts,el);banner(c,'形狀化為角度謎題！','前往右邊的角度之間，挑戰角度魔王',true,el);
+   if(B1.phase!=='done'){B1.phase='done';$('b1res').hidden=false;
+     $('b1res').innerHTML=`<div class="bigres ok">組裝成功！</div><p>魔力 +30，法力 +10。角度之間的門已經打開。</p><button class="btn primary" onclick="closeBoss1()">前往角度之間</button>`}}}
+function closeBoss1(){const built=S.run.boss.built;$('boss1').hidden=true;B1=null;save();hud();
+ if(built)msg('角度之間的門打開了！往右走，找角度魔王。')}
+
+// ===== 房間二：角度之間 =====
+let B2=null;
+const b2c=$('b2c');
+function openBoss2(){const b=S.run.boss;
+ if(!b.built){msg('先在左邊的組裝之間把三角形組好。');return}
+ if(b.done){msg('角度魔王已經被擊敗了。');return}
+ B2={hearts:3,used:{},hint:false,shield:false,eye:false,gone:[],phase:'q',t0:0,hitT:-9,id:Date.now(),parts:[]};
+ $('b2fb').innerHTML='';$('boss2').hidden=false;b2Render();b2Loop(B2.id)}
+function b2Known(ch){return[0,1,2].filter(i=>i!==ch.hidden)}
+function b2Render(){const b=S.run.boss,ch=b.ch,r=S.run;
+ $('b2hearts').textContent='生命 '+'♥'.repeat(Math.max(0,B2.hearts));
+ $('b2hp').style.width=b.done?'0%':b.step===1?'100%':'50%';
+ if(B2.phase==='win'){$('b2spells').innerHTML='';$('b2ctl').hidden=true;return}
+ $('b2ctl').hidden=false;
+ if(B2.phase==='fail'){$('b2q').innerHTML='';$('b2spells').innerHTML='';return}
+ const kn=b2Known(ch),h=ch.hidden;
+ let html='';
+ if(b.step===1){
+   html=`<h2>已知 ∠${VN[kn[0]]} = ${ch.ang[kn[0]]}°、∠${VN[kn[1]]} = ${ch.ang[kn[1]]}°，∠${VN[h]} 是幾度？</h2>
+   ${B2.hint?'<div class="hint">魔法線索：三角形三個內角的和是 180°。</div>':''}
+   <div class="row" style="justify-content:flex-start"><span>∠${VN[h]} =</span><input id="b2in" class="numin" inputmode="numeric" maxlength="3" placeholder="?" onkeydown="if(event.key==='Enter')b2Submit()"><span>度</span><button class="btn primary" onclick="b2Submit()">施放答案</button></div>`;
+ }else{
+   html=`<h2>這個三角形依照角度來分類，是哪一種三角形？</h2>
+   ${B2.hint?'<div class="hint">魔法線索：看最大的角。小於 90° 是銳角三角形，等於 90° 是直角三角形，大於 90° 是鈍角三角形。</div>':''}
+   <div class="opts">${CLS.map((t,k)=>{const g=B2.gone.includes(k);return `<button class="opt ${g?'gone':''}" ${g?'disabled':''} onclick="b2Choose(${k})"><span class="lt">${'ABC'[k]}</span>${t}</button>`}).join('')}</div>`;
+ }
+ $('b2q').innerHTML=html;
+ $('b2spells').innerHTML=r.spells.some(Boolean)?`<span class="tiny">魔法（${r.mp} MP）</span>`+SPELLS.map((sp,i)=>{if(!r.spells[i])return'';
+   const off=B2.used[i]||r.mp<SPELL_COST||(i===0&&b.step===1);
+   return `<button class="btn sp" ${off?'disabled':''} onclick="castBoss(${i})">${sp.name}<small>${SPELL_COST} MP・${esc(sp.boss)}</small></button>`}).join(''):'';
+ const inp=$('b2in');if(inp)inp.focus()}
+function castBoss(i){const r=S.run,b=r.boss;
+ if(!B2||B2.phase!=='q'||B2.used[i]||!r.spells[i]||r.mp<SPELL_COST)return;
+ if(i===0&&b.step===1)return;
+ r.mp-=SPELL_COST;B2.used[i]=true;
+ if(i===0){const right=CLS.indexOf(classify(b.ch));const wrong=[0,1,2].filter(k=>k!==right&&!B2.gone.includes(k));
+   if(wrong.length)B2.gone.push(wrong[Math.floor(Math.random()*wrong.length)]);msg('直線結界劃去了一個錯誤選項。')}
+ if(i===1){B2.hint=true;msg('數字透視：角度提示已顯現。')}
+ if(i===2){B2.shield=true;msg('鏡像護盾已展開，可以擋下一次答錯。')}
+ if(i===3){B2.hearts++;msg('幻影分身：多獲得一顆心！')}
+ if(i===4){B2.eye=true;msg('真相之眼：擊敗魔王時將額外獲得 20 魔力。')}
+ save();hud();b2Render()}
+function b2Submit(){const inp=$('b2in');if(!inp)return;const v=inp.value.trim();
+ if(!/^\d{1,3}$/.test(v)){msg('請輸入一個整數。');return}
+ const ch=S.run.boss.ch,kn=b2Known(ch);
+ b2Answer(+v===ch.ang[ch.hidden],`${v}°`,`${ch.ang[ch.hidden]}°`,`已知 ∠${VN[kn[0]]}=${ch.ang[kn[0]]}°、∠${VN[kn[1]]}=${ch.ang[kn[1]]}°，求 ∠${VN[ch.hidden]}`)}
+function b2Choose(k){const ch=S.run.boss.ch;b2Answer(CLS[k]===classify(ch),CLS[k],classify(ch),`依角度分類這個${ch.type.replace(/（.*）/,'')}`)}
+function b2Answer(ok,chosen,correct,question){if(!B2||B2.phase!=='q')return;
+ const r=S.run,b=r.boss,step=b.step,pts=ok?(step===1?20:10):0;
+ r.records.push({time:new Date().toISOString(),student:S.student||'',tower:6,tower_name:'魔王之塔・角度之間',mage:'角度魔王',mode:'boss2',
+   question_id:'boss2-step'+step,question,options:step===2?CLS.join(' | '):'',chosen,correct_answer:correct,ok,double:false,points:pts});
+ if(ok){r.score+=pts;r.bosspts+=pts;B2.hitT=performance.now()/1000;
+   if(step===1){b.step=2;B2.hint=false;
+     $('b2fb').innerHTML=`<div class="feedback ok"><b>命中！角度魔王受到重擊！</b><br>∠${VN[b.ch.hidden]} = ${b.ch.ang[b.ch.hidden]}°，魔力 +${pts}。再答對一題就能擊敗魔王。</div>`;
+     save();hud();b2Render();return}
+   // 擊敗魔王
+   const bonus=B2.eye?20:0;r.score+=bonus;r.bosspts+=bonus;r.mp+=10;b.done=true;
+   B2.phase='win';B2.t0=performance.now();B2.parts=confetti(70);
+   $('b2q').innerHTML=`<div class="bigres ok">挑戰成功！</div><p class="center">角度魔王被擊敗了！魔力 +${pts+bonus}，法力 +10。</p><div class="center"><button class="btn primary" onclick="closeBoss2()">回到學院</button></div>`;
+   $('b2fb').innerHTML='';save();hud();b2Render();return}
+ // 答錯
+ let txt;
+ if(B2.shield){B2.shield=false;txt='鏡像護盾擋下了魔王的反擊，沒有失去生命。'}
+ else{B2.hearts--;txt='魔王反擊！失去一顆心。'}
+ B2.hint=true;
+ if(B2.hearts<=0){B2.phase='fail';B2.t0=performance.now();
+   $('b2fb').innerHTML=`<div class="bigres no">挑戰失敗</div><p class="center">角度魔王恢復了力量。已經答對的題目會保留，再挑戰一次吧！</p><div class="center"><button class="btn primary" onclick="openBoss2()">再挑戰</button></div>`;
+   save();hud();b2Render();return}
+ $('b2fb').innerHTML=`<div class="feedback no"><b>${txt}</b><br>${step===1?'提示：三角形三個內角的和是 180°。':'提示：想一想，最大的角是幾度？'}</div>`;
+ save();hud();b2Render()}
+function b2Loop(id){if(!B2||B2.id!==id)return;b2Draw();requestAnimationFrame(()=>b2Loop(id))}
+function b2Draw(){const c=b2c.getContext('2d'),now=performance.now()/1000,b=S.run.boss,ch=b.ch;gridBg(c);
+ const p=canonPts(ch);
+ triPath(c,p);c.fillStyle='rgba(243,210,122,.3)';c.fill();c.strokeStyle=C.gold;c.lineWidth=5;c.stroke();
+ drawAngles(c,p,ch,[1,1,1],b.step>1||b.done,now);vertexLabels(c,p);
+ // 角度魔王
+ const hit=now-B2.hitT<.5,sx=hit?Math.round(Math.sin(now*60)*3):0;
+ if(!b.done){if(hit)c.globalAlpha=.6;drawBossSprite(c,4,BW-76+sx,8);c.globalAlpha=1}
+ if(B2.phase==='win'){const el=(performance.now()-B2.t0)/1000;
+   c.fillStyle=`rgba(243,210,122,${Math.max(0,.35-el*.2)})`;c.fillRect(0,0,BW,BH);
+   drawConfetti(c,B2.parts,el);banner(c,'挑戰成功！','角度魔王被擊敗了',true,el)}
+ if(B2.phase==='fail'){const el=(performance.now()-B2.t0)/1000;c.fillStyle='rgba(224,122,140,.15)';c.fillRect(0,0,BW,BH);banner(c,'挑戰失敗','再挑戰一次吧',false,el)}}
+function closeBoss2(){$('boss2').hidden=true;B2=null;save();hud();
+ if(!S.run.finished&&allDone())finish()}
+
 // ===== 紀錄之碑：成果與匯出 =====
 function showSummary(final){const r=S.run;
  const rows=TOWERS.map((T,i)=>{const m=mastery(i);const mini=MINI_ON[i]?(r.mini[i]?'✅ 過關':'🔒 未完成'):'—';
-   return `<tr><td>${i+1}. ${esc(T.mage)}（${esc(T.name)}）</td><td>${m}</td><td>${mini}</td></tr>`}).join('');
+   return `<tr><td>${i+1}. ${esc(T.mage)}（${esc(T.name)}）</td><td>${m}</td><td>${mini}</td></tr>`}).join('')
+   +`<tr><td>魔王之塔${r.boss.ch?'（'+esc(r.boss.ch.type)+'）':''}</td><td>${r.boss.built?'✅ 組裝完成':'🔒 未組裝'}</td><td>${r.boss.done?'✅ 擊敗角度魔王':'🔒 未擊敗'}</td></tr>`;
  const wrong=r.records.filter(x=>x.mode==='main'&&!x.ok).map(x=>`<div class="feedback no"><b>${esc(x.question)}</b><br>你施放的元素：${esc(x.chosen)}<br>正確元素：${esc(x.correct_answer)}</div>`).join('');
  const stars=r.awarded?`<p>本次試煉獲得 ${r.coins} 顆魔法星晶，目前共有 ${S.stars} 顆。</p>`:(final?'':'<p class="tiny">通過五座塔後會結算星晶。</p>');
  const fb=final?`<h3>出口回饋（法師誓言）</h3><p>用自己的話說說：怎麼判斷一個圖形是不是正多邊形？</p><textarea placeholder="我會先＿＿，再＿＿，所以＿＿。"></textarea><p class="tiny">寫在學習單或說給老師聽（此欄不會儲存）。</p>`:'';
  $('box').innerHTML=`<div class="sum"><span class="tag">${final?'徽章鑄成':'紀錄之碑'}</span> <span class="tiny">${esc(S.student||'未填寫')}</span>
-  <h1>${r.score}<small> 分</small></h1><p>${rankOf(r.score)}　基本魔力 ${r.base} ＋ 爆發加成 ${r.bonus} ＋ 殘卷補練 ${r.repair} ＋ 試煉場 ${r.minipts}</p>
-  ${stars}<h3>五位法師的掌握表</h3><table><tr><th>守塔法師（塔）</th><th>祭壇試煉</th><th>試煉場</th></tr>${rows}</table>
+  <h1>${r.score}<small> 分</small></h1><p>${rankOf(r.score)}　基本魔力 ${r.base} ＋ 爆發加成 ${r.bonus} ＋ 殘卷補練 ${r.repair} ＋ 試煉場 ${r.minipts} ＋ 魔王之塔 ${r.bosspts}</p>
+  ${stars}<h3>五位法師的掌握表</h3><table><tr><th>守塔法師（塔）</th><th>祭壇試煉／組裝之間</th><th>試煉場／角度之間</th></tr>${rows}</table>
   ${wrong}${fb}
   <div class="btns"><button class="btn" onclick="exportJSON()">匯出 JSON</button><button class="btn" onclick="exportCSV()">匯出 CSV</button><button class="btn" onclick="closeModal()">${final?'回學院中庭':'關閉'}</button><button class="btn" onclick="confirmReset()">再闖一次</button></div></div>`;
  $('modal').hidden=false}
 function closeModal(){$('modal').hidden=true}
 function confirmReset(){if(!confirm('重新開始本次試煉？魔法星晶會保留。'))return;
- S.run=fresh();S.loc='hub';S.x=7;S.y=7;Q=null;MG=null;$('modal').hidden=true;$('mini').hidden=true;save();hud();msg('新的試煉開始了。走向上方的塔門，依序踏入第一座塔。')}
+ S.run=fresh();S.loc='hub';S.x=7;S.y=7;Q=null;MG=null;B1=null;B2=null;
+ ['modal','mini','boss1','boss2'].forEach(id=>$(id).hidden=true);save();hud();msg('新的試煉開始了。走向上方的塔門，依序踏入第一座塔。')}
 function fname(ext){const who=(S.student||'anon').replace(/[^\w一-鿿-]/g,'_');return `polygon-magic-${who}-${new Date().toISOString().slice(0,10)}.${ext}`}
 function download(name,type,text,bom){const blob=new Blob([(bom?'﻿':'')+text],{type});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
@@ -642,7 +949,10 @@ function exportJSON(){const r=S.run;
   run:{started:r.started,finished:!!r.finished,score:r.score,base:r.base,bonus:r.bonus,repair:r.repair,minipts:r.minipts,mp:r.mp,stars_earned:r.coins||0,
    towers:TOWERS.map((T,i)=>({tower:i+1,name:T.name,mage:T.mage,status:r.status[i],mastery:mastery(i),
      mini_cleared:MINI_ON[i]?!!r.mini[i]:null,passed:towerDone(i)})),
-   spells_unlocked:SPELLS.filter((_,i)=>r.spells[i]).map(s=>s.name)},
+   spells_unlocked:SPELLS.filter((_,i)=>r.spells[i]).map(s=>s.name),
+   bosspts:r.bosspts,
+   boss:r.boss.ch?{triangle_type:r.boss.ch.type,target_sides:r.boss.ch.sides,angles:{A:r.boss.ch.ang[0],B:r.boss.ch.ang[1],C:r.boss.ch.ang[2]},
+     hidden_vertex:VN[r.boss.ch.hidden],built:r.boss.built,angle_step:r.boss.step,defeated:r.boss.done}:{built:false,defeated:false}},
   records:r.records};
  download(fname('json'),'application/json',JSON.stringify(data,null,2),false)}
 function exportCSV(){const cols=['time','student','tower','tower_name','mage','mode','question_id','question','options','chosen','correct_answer','ok','double','points'];
@@ -674,8 +984,11 @@ function drawGame(){const g=grid();const W=g[0].length*TS,H=g.length*TS;
    ctx.setLineDash([]);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.fillStyle='rgba(217,161,58,.35)';ctx.fillRect(100,-1,40,2);ctx.restore()}
    ctx.restore()}
  for(let y=0;y<g.length;y++)for(let x=0;x<g[0].length;x++){const ch=g[y][x],bx=x*TS,by=y*TS;
-   if(ch==='#')drawWall(bx,by,x,y);else drawFloor(bx,by,x,y,S.loc==='hub');
+   if(ch==='#')drawWall(bx,by,x,y);else drawFloor(bx,by,x,y,S.loc==='hub',S.loc==='boss');
    if(S.loc==='hub'&&/[1-5]/.test(ch))drawGateTile(bx,by,+ch-1);
+   else if(ch==='B')drawBossGate(bx,by);
+   else if(ch==='P'||ch==='Q')drawBossAltar(bx,by,ch);
+   else if(ch==='D')drawBossDoor(bx,by);
    else if(ch==='X')drawStele(bx,by);
    else if(ch==='G')drawDoor(bx,by);
    else if(ch==='A')drawAltar(bx,by);

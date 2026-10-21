@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>多邊形魔法學院・象數試煉</title>
+<style>
+:root{--ink:#0d0b1f;--indigo:#1d1748;--violet:#5b3fa0;--violetL:#7a5cd6;--gold:#f2c46b;--goldD:#b07a18;--mint:#6fd0b0;--cream:#f3e6d0;--panel:#17123a;--dim:#b9aee0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--ink);color:#efe9ff;font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;min-height:100vh}
+header{max-width:1000px;margin:auto;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:3px solid var(--ink);box-shadow:0 3px 0 rgba(242,196,107,.25)}
+.brand{font-weight:900;font-size:19px;letter-spacing:3px;color:var(--gold);text-shadow:2px 2px 0 var(--violet)}
+.chip{font-size:12px;letter-spacing:1px;color:var(--dim);padding:6px 12px;background:var(--panel);box-shadow:0 0 0 2px var(--ink),0 0 0 4px var(--goldD)}
+.wrap{display:grid;grid-template-columns:auto 290px;gap:22px;max-width:1060px;margin:22px auto;padding:0 16px;justify-content:center}
+.stage{min-width:0}
+canvas#cv{display:block;max-width:100%;height:auto;image-rendering:pixelated;border:3px solid var(--gold);box-shadow:0 0 0 3px var(--ink),0 0 40px rgba(91,63,160,.45)}
+.topbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+#place{font-size:14px;color:var(--gold);font-weight:700;letter-spacing:1px}
+#student{background:var(--ink);color:#efe9ff;border:0;padding:8px 10px;font:inherit;width:230px;box-shadow:inset 0 0 0 2px var(--goldD)}
+#msg{min-height:30px;margin:12px 0 4px;color:var(--gold);opacity:0;transition:opacity .25s;line-height:1.6;font-size:15px}
+#msg.show{opacity:1}
+.pad{display:grid;justify-items:center;gap:6px;margin-top:8px}.pad .r{display:flex;gap:6px}
+.pad button{width:60px;height:50px;color:var(--gold);background:#241d4a;border:0;font-size:20px;cursor:pointer;box-shadow:inset -3px -3px 0 #120d30,inset 3px 3px 0 #3d3478,0 0 0 2px var(--ink),0 0 0 3px var(--goldD)}
+.pad button:active{transform:translate(2px,2px)}
+.side{background:var(--panel);padding:18px;align-self:start;box-shadow:0 0 0 3px var(--ink),0 0 0 6px var(--gold),0 0 0 9px var(--ink)}
+.stat{display:flex;justify-content:space-between;align-items:center;margin:8px 0;font-size:14px;color:var(--dim)}
+.stat b{font-size:22px;color:var(--gold);display:inline-flex;align-items:center;gap:6px}
+.side h3{font-size:15px;color:var(--gold);letter-spacing:2px;margin:16px 0 6px;border-bottom:2px solid var(--ink);box-shadow:0 2px 0 var(--goldD);padding-bottom:4px}
+.trow{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 0;font-size:13px}
+.sq{width:12px;height:12px;display:inline-block;box-shadow:0 0 0 2px var(--ink)}
+.sq.todo{background:var(--gold)}.sq.remain{background:#b58cf5}.sq.ok{background:var(--mint)}
+.spell{padding:8px 0;border-bottom:1px dashed rgba(242,196,107,.18);font-size:13px;color:#8e84b8}
+.spell.on{color:#efe9ff}
+.spell b{color:var(--gold)}
+.btn{font:inherit;color:#f7edd0;background:#2c2265;border:0;padding:10px 14px;cursor:pointer;margin:6px 8px 6px 0;letter-spacing:1px;font-size:14px;box-shadow:inset -3px -3px 0 #120d30,inset 3px 3px 0 #4a3d9a,0 0 0 2px var(--ink),0 0 0 4px var(--goldD)}
+.btn:hover:not(:disabled){background:#3a2d7a}
+.btn:active:not(:disabled){transform:translate(2px,2px)}
+.btn.primary{background:var(--violet)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sp{text-align:left;font-size:13px;padding:8px 12px}
+.btn.sp small{display:block;font-size:11px;color:var(--dim);margin-top:2px}
+.side .btn{display:block;width:100%;text-align:left;margin:8px 0}
+.tiny{font-size:12px;color:#8e84b8;line-height:1.7}
+/* 標題畫面 */
+#title{position:fixed;inset:0;z-index:20;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;overflow:auto}
+#tc{width:min(720px,100%);height:auto;image-rendering:pixelated;border:3px solid var(--gold);box-shadow:0 0 0 3px var(--ink),0 0 60px rgba(91,63,160,.5)}
+h1.logo{font-size:clamp(26px,5vw,42px);color:var(--gold);text-shadow:3px 3px 0 var(--violet),-2px 0 0 var(--ink);letter-spacing:5px;margin:18px 0 6px}
+.sub{color:var(--dim);letter-spacing:5px;font-size:13px}
+.blink{animation:blink 1.1s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
+/* 對話框與試煉場 */
+.modal{position:fixed;inset:0;background:rgba(5,3,14,.78);display:flex;align-items:center;justify-content:center;padding:14px;z-index:9;overflow:auto}
+.box{background:var(--panel);max-width:700px;width:100%;max-height:92vh;overflow:auto;padding:22px;box-shadow:0 0 0 3px var(--ink),0 0 0 6px var(--gold),0 0 0 9px var(--ink),0 0 70px rgba(91,63,160,.55)}
+.qtop{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+canvas.pt{width:96px;height:96px;image-rendering:pixelated;background:var(--ink);box-shadow:0 0 0 3px var(--gold),0 0 0 5px var(--ink);flex-shrink:0}
+.tag{display:inline-block;background:#2c2265;color:var(--gold);padding:4px 10px;font-size:12px;letter-spacing:2px;box-shadow:0 0 0 2px var(--goldD)}
+.tname{color:var(--gold);font-weight:800;font-size:16px;margin:8px 0 4px}
+.mage{font-size:13px;color:var(--dim)}
+.bars{display:flex;flex-direction:column;gap:4px;margin-right:4px}
+.bars span{display:block;width:34px;height:4px;background:var(--gold)}
+.bars span.n{background:linear-gradient(90deg,var(--gold) 0 40%,transparent 40% 60%,var(--gold) 60%)}
+h2{font-size:21px;line-height:1.6;margin:12px 0}h3{font-size:16px;margin:16px 0 6px;color:var(--gold)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.spellbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.badge{background:#2c2265;padding:5px 10px;font-size:13px}
+.hint{background:var(--ink);padding:12px 14px;margin:12px 0;line-height:1.8;font-size:14px;box-shadow:inset 0 0 0 2px var(--mint)}
+.fig{background:#f5f1fc;padding:10px;margin:12px 0;text-align:center;box-shadow:0 0 0 3px var(--gold)}.fig svg{max-height:160px;width:auto;max-width:100%}
+.opts{display:grid;gap:10px;margin:14px 0}
+.opt{text-align:left;background:#1d1748;border:0;color:#efe9ff;padding:13px 14px;display:flex;gap:12px;align-items:center;font:inherit;font-size:15px;cursor:pointer;box-shadow:inset -3px -3px 0 #120d30,inset 3px 3px 0 #3d3478}
+.opt:hover:not(:disabled){background:#2a2268}
+.opt:disabled{cursor:default}
+.opt.gone{opacity:.3;text-decoration:line-through}
+.opt.correct{background:#173d33;box-shadow:inset -3px -3px 0 #0b2a22,inset 3px 3px 0 #2f8f73}
+.opt.wrong{background:#3d2030;box-shadow:inset -3px -3px 0 #2a1420,inset 3px 3px 0 #a0604b}
+.lt{display:grid;place-content:center;width:26px;height:26px;background:#2c2265;color:var(--gold);font-weight:900;flex-shrink:0;box-shadow:0 0 0 2px var(--gold)}
+.feedback{background:var(--ink);padding:14px 16px;margin:12px 0;line-height:1.8;font-size:15px}
+.feedback.ok{box-shadow:inset 4px 0 0 var(--mint)}.feedback.no{box-shadow:inset 4px 0 0 #d07a62}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}th,td{padding:8px;text-align:left;vertical-align:top;box-shadow:inset 0 0 0 1px #3d3478}th{background:#241d4a;color:var(--gold)}
+.sum h1{font-size:44px;margin:6px 0;color:var(--gold)}
+.sum h1 small{font-size:18px;color:var(--dim)}
+.btns{display:flex;flex-wrap:wrap;gap:4px;margin-top:14px}
+textarea{width:100%;min-height:80px;background:var(--ink);color:#efe9ff;border:0;padding:10px;font:inherit;box-shadow:inset 0 0 0 2px var(--goldD)}
+.rank{font-size:12px;letter-spacing:1px;color:var(--gold)}
+#mc{display:block;width:100%;max-width:480px;height:auto;margin:10px auto 0;image-rendering:pixelated;border:3px solid var(--gold);background:var(--ink)}
+.mhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mctl-pad{display:flex;gap:8px;justify-content:center;margin-top:8px}
+@media(max-width:820px){.wrap{grid-template-columns:1fr}#student{width:100%}}
+</style></head><body>
+
+<div id="title">
+  <canvas id="tc" width="720" height="400"></canvas>
+  <h1 class="logo">多邊形魔法學院</h1>
+  <div class="sub">象 · 數 · 魔　五座塔・五位法師</div>
+  <div style="margin-top:18px"><button class="btn primary" id="btnStart" onclick="startGame()">開始冒險</button></div>
+  <p class="tiny blink" style="margin-top:14px">按下開始，走進你的第一座塔</p>
+</div>
+
+<header><div class="brand">✦ 多邊形魔法學院</div><div class="chip">象・數・魔 ｜ 五年級數學 5-1 多邊形</div></header>
+
+<main class="wrap">
+  <section class="stage">
+    <div class="topbar">
+      <div id="place"></div>
+      <input id="student" maxlength="20" placeholder="座號或暱稱（寫入匯出檔）">
+    </div>
+    <canvas id="cv" width="720" height="432"></canvas>
+    <div id="msg"></div>
+    <div class="pad">
+      <button data-dx="0" data-dy="-1" aria-label="上">▲</button>
+      <div class="r">
+        <button data-dx="-1" data-dy="0" aria-label="左">◀</button>
+        <button data-dx="0" data-dy="1" aria-label="下">▼</button>
+        <button data-dx="1" data-dy="0" aria-label="右">▶</button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="stat"><span>魔力</span><b id="score">0</b></div>
+    <div class="stat"><span>法力 MP</span><b id="mp">0</b></div>
+    <div class="stat"><span>魔法星晶</span><b id="stars">0</b></div>
+    <div class="stat"><span>法師等級</span><span class="rank" id="rank"></span></div>
+    <h3>五座塔</h3>
+    <div id="towers"></div>
+    <h3>魔法書</h3>
+    <div id="spells"></div>
+    <h3>紀錄</h3>
+    <button class="btn" onclick="exportJSON()">匯出 JSON</button>
+    <button class="btn" onclick="exportCSV()">匯出 CSV（Excel 可開）</button>
+    <button class="btn" onclick="confirmReset()">重新開始本次試煉</button>
+    <p class="tiny">操作：方向鍵或 WASD 移動，手機點下方方向鈕。走到塔門會進入該塔；走到祭壇（發光的圓）會開始守塔法師的試煉；走到紫色圓陣會進入試煉場。</p>
+  </aside>
+</main>
+
+<div id="modal" class="modal" hidden><div class="box" id="box"></div></div>
+
+<div id="mini" class="modal" hidden><div class="box">
+  <div class="mhead"><span class="tag">試煉場</span><span id="mtitle" class="tname"></span></div>
+  <p id="mrule" class="tiny"></p>
+  <canvas id="mc" width="480" height="400"></canvas>
+  <div class="row"><span id="mstat" class="tiny"></span></div>
+  <div id="mctl">
+    <div class="mctl-pad"><button class="btn" id="mleft">◀</button><button class="btn" id="mright">▶</button></div>
+    <div id="mspells" class="spellbar"></div>
+    <div class="row">
+      <button class="btn primary" id="mstart" onclick="miniStart()">開始挑戰</button>
+      <button class="btn" onclick="closeMini()">離開</button>
+    </div>
+  </div>
+  <div id="mres" hidden></div>
+</div></div>
+
+<script>
+// ===== 內容（題目、選項與正解與原版相同，只替換包裝）=====
+const SHAPES={
+ semi:'<svg viewBox="0 0 220 130"><path d="M20 115 A90 90 0 0 1 200 115 Z" fill="#d9d2ef" stroke="#5c4f8a" stroke-width="3"/></svg>',
+ penta:'<svg viewBox="0 0 200 190"><polygon points="100,15 185,77 152,175 48,175 15,77" fill="#dff0d8" stroke="#3f7d4f" stroke-width="3"/></svg>',
+ rhombus:'<svg viewBox="0 0 240 160"><polygon points="40,80 120,20 200,80 120,140" fill="#dcebf7" stroke="#3d6c97" stroke-width="3"/></svg>',
+ hexa:'<svg viewBox="0 0 220 200"><polygon points="60,20 160,20 210,100 160,180 60,180 10,100" fill="#fde7c8" stroke="#a8692a" stroke-width="3"/></svg>'
+};
+const TOWERS=[
+ {name:"多邊形的意義",mage:"線之法師",hint:"多邊形是由三條以上「直線邊」所圍成的平面圖形；有曲線的圖形不是多邊形。",ask:"請精靈e度：「我判斷這個圖形是不是多邊形的理由是＿＿，請檢查我有沒有看每一條邊。」",qs:[
+  ["多邊形是由什麼所圍成的平面圖形？",["三條以上的直線邊","兩條直線邊","一條曲線","任何線條都可以"],0],
+  ["這個圖形是多邊形嗎？",["是，因為它有兩個角","不是，因為有一條邊是曲線","是，因為它是平面圖形","不是，因為它太小了"],1,"semi"],
+  ["下列哪一個是多邊形？",["圓形","半圓形","正方形","月牙形"],2]]},
+ {name:"名稱與邊角頂點",mage:"數之法師",hint:"多邊形依邊數命名；邊數、角數、頂點數三者一樣多。",ask:"請精靈e度：「我數到＿條邊，請提醒我數邊的方法，我自己再數一次。」",qs:[
+  ["這個圖形叫做什麼？",["四邊形","五邊形","六邊形","七邊形"],1,"penta"],
+  ["六邊形有幾個頂點？",["4個","5個","6個","7個"],2,"hexa"],
+  ["多邊形的邊數、角數和頂點數有什麼關係？",["三者一樣多","角數比邊數多1","頂點數比邊數少1","三者沒有關係"],0]]},
+ {name:"正多邊形的條件",mage:"對稱之法師",hint:"每條邊都一樣長、每個角都一樣大，兩個條件同時成立才是正多邊形。",ask:"請精靈e度：「我分開檢查了邊和角，結果是＿＿，請檢查我的判斷依據。」",qs:[
+  ["正多邊形必須符合哪兩個條件？",["每條邊都一樣長、每個角都一樣大","邊數是雙數、角數是雙數","至少有一個直角","看起來很整齊"],0],
+  ["下列哪一個是正多邊形？",["長方形（長和寬不一樣長）","正方形","角不相等的菱形","邊長都不同的五邊形"],1],
+  ["正六邊形有什麼特徵？",["6條邊一樣長，6個角也一樣大","6條邊一樣長就好","6個角一樣大就好","有6個直角"],0]]},
+ {name:"判斷與反例",mage:"幻影法師",hint:"只看一個條件不夠：菱形邊一樣長但角不一定一樣大；長方形角一樣大但邊不一定一樣長。",ask:"請精靈e度：「有沒有圖形可以反駁我的結論？請引導我自己找。」",qs:[
+  ["這個菱形每條邊都一樣長，但角不一樣大。它是正多邊形嗎？",["是，因為邊一樣長","不是，因為角不一樣大","是，因為它有四條邊","它不是多邊形"],1,"rhombus"],
+  ["每個角都一樣大的多邊形，每條邊一定一樣長嗎？",["一定","不一定，長方形就是例子","只有三角形不一定","一定，因為角決定邊長"],1],
+  ["每條邊都一樣長的多邊形，每個角一定一樣大嗎？",["一定","不一定，菱形就是例子","只有四邊形一定","一定，因為邊決定角"],1]]},
+ {name:"證據與AI學習",mage:"證據之法師＋精靈e度",hint:"判斷要有證據：用直尺、量角器、課本或影片核對；向精靈e度提問要先有初稿，找不到依據標「待查證」。",ask:"請精靈e度：「這項補充來自課本或影片的哪裡？找不到我會標『待查證』。」",qs:[
+  ["小晴說：「這個圖形看起來很整齊，一定是正多邊形。」最適合的回應是？",["同意，看起來就夠了","用直尺和量角器量邊與角，再判斷","看顏色來判斷","問一位同學就好"],1],
+  ["向精靈e度提問時，下列哪一種做法最好？",["直接請精靈e度給答案","先寫初稿，再請精靈e度檢查指定的部分","一次問很多題","不看影片直接問"],1],
+  ["精靈e度的補充在課本和影片都找不到依據時，應該怎麼做？",["直接抄上去","刪掉自己的答案","標「待查證」，再回看影片或問老師","不理它"],2]]}
+];
+// 魔法：通過對應的塔後習得；試煉中與試煉場中都可施放
+const SPELLS=[
+ {name:'直線結界',mage:'線之法師',quiz:'劃去一個錯誤選項',mini:'清除場上所有不符合的圖形或怪物'},
+ {name:'數字透視',mage:'數之法師',quiz:'先看見魔法線索',mini:'時序減緩 4 秒'},
+ {name:'鏡像護盾',mage:'對稱之法師',quiz:'答錯時，祭壇不會留下殘卷',mini:'擋下下一次碰撞或誤接'},
+ {name:'幻影分身',mage:'幻影法師',quiz:'更換本題（同塔的另一題）',mini:'短暫無敵 3 秒'},
+ {name:'真相之眼',mage:'證據之法師',quiz:'本題答對額外 +10 魔力',mini:'挑戰成功時額外 +20 魔力'}
+];
+const SPELL_COST=10;
+const MINI_ON=[false,true,false,true,false];   // 第二、第四座塔有試煉場
+const TRI=[[1,1,1],[0,1,0],[0,0,1],[1,0,0],[0,0,0]];   // 卦爻：1 陽（實線），0 陰（斷線）
+const CN='一二三四五';
+const NUM={3:'三',4:'四',5:'五',6:'六'};
+const HUB=[
+ "#1#2#3#4#5#####",
+ "#.............#",
+ "#......X......#",
+ "#.#.#.#.#.#.#.#",
+ "#.............#",
+ "#.#.#.#.#.#.#.#",
+ "#.............#",
+ "#.............#",
+ "###############"
+];
+function makeTower(t){const rows=[];
+ for(let r=0;r<11;r++){let s='';for(let c=0;c<13;c++){let ch='.';
+   if(r===0||r===10||c===0||c===12)ch='#';
+   else if(r%2===0&&c%2===0&&(r+c+t)%4===0)ch='#';
+   s+=ch}rows.push(s)}
+ const put=(r,c,ch)=>{rows[r]=rows[r].slice(0,c)+ch+rows[r].slice(c+1)};
+ put(1,6,'A');put(10,6,'G');if(MINI_ON[t])put(7,3,'M');return rows}
+const TGRID=TOWERS.map((_,t)=>makeTower(t));
+
+// ===== 像素美術（16×16 格子，每格 3 像素）=====
+const TS=48,U=3;
+const R=(c,u,bx,by,x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(bx+x*u,by+y*u,w*u,h*u)};
+const hash=(x,y,s=0)=>{let n=(x*374761393+y*668265263+s*982451653)|0;n=(n^(n>>>13))*1274126177|0;n=n^(n>>>16);return ((n>>>0)%10000)/10000};
+const MAGE_ROWS=[
+ ".....xxxxxx.....",
+ "....xHHHHHHx....",
+ "...xHHHHHHHHx...",
+ "...xHHHHHHHHx...",
+ "...xHhkkkkhHx...",
+ "...xHkkekkeHx...",
+ "...xHkkkkkkHx...",
+ "...xHhkkmkhHx...",
+ "..xHHHHHHHHHHx..",
+ "..xhbbggggbhx...",
+ ".xhbbbbbbbbbbhx.",
+ ".xhbbbbbbbbbbhx.",
+ ".xhbbbbbbbbbbhx.",
+ ".xhbbbbbbbbbbhx.",
+ "..xbbbbbbbbbbx..",
+ "..xyyx....xyyx.."
+];
+const MAGE_PAL={x:'#0d0b1f',H:'#7a5cd6',h:'#4a3596',k:'#f1c9a0',e:'#0d0b1f',m:'#c77a5a',b:'#2c2265',g:'#f2c46b',y:'#120d30'};
+const PAL_UP={...MAGE_PAL,k:'#7a5cd6',e:'#7a5cd6',m:'#7a5cd6'};
+const PORT={
+ 0:{H:'#8c8fc9',h:'#5e6190',b:'#2c2265',g:'#c8ccdc'},
+ 1:{H:'#2fa183',h:'#1c6b57',b:'#1d3a3a',g:'#f2c46b'},
+ 2:{H:'#3aa7b4',h:'#1f6b75',b:'#1f3f4a',g:'#f3e6d0'},
+ 3:{H:'#9a6cf0',h:'#5b3fa0',b:'#3a2a6e',g:'#c3b4ff'},
+ 4:{H:'#d9a441',h:'#8a5a1e',b:'#3d2a14',g:'#f3e6d0'}
+};
+function drawSprite(c,u,bx,by,rows,pal,dy=0){
+ for(let r=0;r<rows.length;r++){const row=rows[r];
+   for(let col=0;col<row.length;col++){const ch=row[col];if(ch==='.'||!pal[ch])continue;
+     R(c,u,bx,by,col,r+dy,1,1,pal[ch])}}}
+let face='down',frame=0;
+function drawMageWorld(bx,by){
+ const dy=frame?-1:0;const pal=face==='up'?PAL_UP:MAGE_PAL;
+ drawSprite(ctx,U,bx,by,MAGE_ROWS,pal,dy);
+ const sx=face==='left'?0:15, stx=face==='left'?0:14;
+ R(ctx,U,bx,by,sx,4+dy,1,12,'#8a5a2e');
+ R(ctx,U,bx,by,stx,0+dy,2,2,'#fff3b0');
+ R(ctx,U,bx,by,stx,0+dy,2,1,'#f2c46b')}
+function drawFloor(bx,by,gx,gy,hub){
+ R(ctx,U,bx,by,0,0,16,16,hub?'#1c1746':'#221b4c');
+ if(hash(gx,gy,1)>.4)R(ctx,U,bx,by,Math.floor(hash(gx,gy,2)*13)+1,Math.floor(hash(gx,gy,3)*13)+1,1,1,'#2e2770');
+ if(hub){R(ctx,U,bx,by,0,0,16,1,'#2c2566');R(ctx,U,bx,by,0,0,1,16,'#2c2566')}
+ else{
+   if(hash(gx,gy,4)>.92)R(ctx,U,bx,by,8,3,1,4,'#100c28');
+   if(hash(gx,gy,5)>.96)R(ctx,U,bx,by,6,10,3,1,'#3b2f73');
+   if(hash(gx,gy,6)>.97)R(ctx,U,bx,by,7,7,2,2,'#8f6fd6');
+ }}
+function drawWall(bx,by,gx,gy){
+ R(ctx,U,bx,by,0,0,16,16,'#2b2355');
+ for(let r=0;r<4;r++){const y=r*4,off=r%2?8:0;
+   R(ctx,U,bx,by,0,y,16,1,'#1a1540');
+   R(ctx,U,bx,by,off,y,1,4,'#1a1540');
+   R(ctx,U,bx,by,(off+8)%16,y,1,4,'#1a1540');
+   R(ctx,U,bx,by,off+1,y+1,6,1,'#3d3478')}
+ if(hash(gx,gy,8)>.72)R(ctx,U,bx,by,3,7,10,1,'#8a6a2a');
+ if(hash(gx,gy,9)>.9)R(ctx,U,bx,by,7,1,2,2,'#f2c46b')}
+function drawGateAt(c,bx,by,u,t,state){
+ const stone='#4a4184',stoneD='#2b2355',dark='#0d0b1f';
+ const col=state==='lock'?'#3a3170':(state==='open'?'#f2c46b':'#6fd0b0');
+ R(c,u,bx,by,2,1,12,2,stone);R(c,u,bx,by,2,3,2,12,stone);R(c,u,bx,by,12,3,2,12,stone);
+ R(c,u,bx,by,4,3,8,12,dark);
+ if(state!=='lock')R(c,u,bx,by,4,3,8,12,col+'22');
+ for(let i=0;i<3;i++){const y=6+i*3;
+   if(TRI[t][i])R(c,u,bx,by,5,y,6,1,col);
+   else{R(c,u,bx,by,5,y,2,1,col);R(c,u,bx,by,9,y,2,1,col)}}
+ R(c,u,bx,by,1,15,14,1,stone);R(c,u,bx,by,0,15,16,1,stoneD)}
+function gateState(t){if(t>0&&!towerDone(t-1))return'lock';return towerDone(t)?'done':'open'}
+function drawGateTile(bx,by,t){drawGateAt(ctx,bx,by,U,t,gateState(t))}
+function drawStele(bx,by){
+ R(ctx,U,bx,by,4,14,8,2,'#2b2355');R(ctx,U,bx,by,6,2,4,12,'#4a4184');
+ R(ctx,U,bx,by,5,1,6,2,'#5a5196');R(ctx,U,bx,by,6,3,4,1,'#0d0b1f');
+ ctx.fillStyle='#f2c46b';ctx.font='bold 15px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText('記',bx+24,by+30)}
+function drawDoor(bx,by){
+ R(ctx,U,bx,by,2,1,12,2,'#4a4184');R(ctx,U,bx,by,2,3,2,12,'#4a4184');R(ctx,U,bx,by,12,3,2,12,'#4a4184');
+ R(ctx,U,bx,by,4,3,8,12,'#3a2a10');R(ctx,U,bx,by,4,9,8,6,'#5a3f14');
+ ctx.fillStyle='#f2c46b';ctx.font='bold 14px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText('出',bx+24,by+30)}
+function polyPath(c,cx,cy,n,r,rot){c.beginPath();for(let i=0;i<n;i++){const a=rot+i*2*Math.PI/n-Math.PI/2;const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?c.lineTo(x,y):c.moveTo(x,y)}c.closePath()}
+function drawAltar(bx,by){
+ const st=S.run.status[S.loc];const now=performance.now()/1000;
+ const color=st==='todo'?'#f2c46b':(st==='remain'?'#b58cf5':'#6fd0b0');
+ const cx=bx+24,cy=by+24;
+ ctx.fillStyle='#2c2265';ctx.beginPath();ctx.arc(cx,cy,19,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#0d0b1f';ctx.lineWidth=3;ctx.stroke();
+ const live=st==='todo'||st==='remain';
+ ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.arc(cx,cy,14+(live?Math.sin(now*3)*1.5:0),0,Math.PI*2);ctx.stroke();
+ ctx.lineWidth=1.5;ctx.globalAlpha=.6;ctx.beginPath();ctx.arc(cx,cy,9,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+ if(st==='todo'){for(let k=0;k<3;k++){const a=now*1.5+k*2.1;ctx.fillStyle='#fff3b0';ctx.fillRect(cx+Math.cos(a)*22-1,cy+Math.sin(a)*22-1,3,3)}}
+ ctx.fillStyle=color;ctx.font='bold 12px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText(CN[S.loc],cx,cy+4)}
+function drawMiniAltar(bx,by){
+ const t=S.loc,done=S.run.mini[t],now=performance.now()/1000;
+ const col=done?'#6fd0b0':'#b58cf5';const cx=bx+24,cy=by+24;
+ ctx.fillStyle='#2c2265';ctx.beginPath();ctx.arc(cx,cy,19,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle=col;ctx.lineWidth=2;
+ if(t===1){polyPath(ctx,cx,cy,3,15,now*.6);ctx.stroke()}
+ else{polyPath(ctx,cx,cy,4,15,Math.PI/4+now*.4);ctx.stroke()}
+ ctx.fillStyle=col;ctx.font='bold 11px "Noto Sans TC",sans-serif';ctx.textAlign='center';ctx.fillText(done?'✓':'試',cx,cy+4)}
+
+// ===== 狀態與存檔 =====
+const KEY='polygon-magic-rpg-v1';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle=a=>a.map(x=>({x,r:Math.random()})).sort((p,q)=>p.r-q.r).map(o=>o.x);
+function fresh(){return{score:0,base:0,bonus:0,repair:0,minipts:0,mp:0,doubleUsed:false,
+  status:['todo','todo','todo','todo','todo'],remainId:[null,null,null,null,null],
+  mini:[false,false,false,false,false],spells:[false,false,false,false,false],
+  records:[],awarded:false,coins:0,finished:false,started:new Date().toISOString()}}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');
+   if(d&&Number.isSafeInteger(d.stars)&&d.run&&Array.isArray(d.run.status)&&d.run.status.length===5){
+     const r=d.run;const f=fresh();
+     if(!Array.isArray(r.mini))r.mini=f.mini;
+     if(!Array.isArray(r.spells))r.spells=f.spells;
+     if(typeof r.mp!=='number')r.mp=0;
+     if(typeof r.minipts!=='number')r.minipts=0;
+     return d}}catch(e){}
+ return{stars:0,run:fresh(),loc:'hub',x:7,y:7,student:''}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let S=load();
+let Q=null,MG=null,msgT=null,titleOpen=true;
+const MG_W=480,MG_H=400;
+const rankOf=s=>s>=100?'大法師':s>=60?'正式法師':s>=40?'見習法師':'學徒';
+const coinsOf=s=>s>=100?5:s>=80?4:s>=60?3:s>=40?2:1;
+function towerDone(i){return S.run.status[i]!=='todo'&&(!MINI_ON[i]||S.run.mini[i])}
+function allDone(){return TOWERS.every((_,i)=>towerDone(i))}
+function mastery(i){const rs=S.run.records.filter(x=>x.tower===i+1&&x.mode!=='mini');const m=rs.find(x=>x.mode==='main');const rp=rs.some(x=>x.mode==='repair'&&x.ok);
+ if(!m)return'未挑戰';if(m.ok)return'✅ 已掌握';if(rp)return'🔁 補練後掌握';return'🌱 需要再複習'}
+
+// 像素小圖示（SVG 8×8）
+const ICONS={
+ star:{pal:{w:'#f2c46b',l:'#fff3b0'},map:["...ll...","...ll...","wwwwwwww",".wwwwww.","..wwww..",".ww..ww.",".w....w.","........"]}
+};
+function icon(name){const I=ICONS[name];let rects='';
+ I.map.forEach((row,r)=>{for(let c=0;c<row.length;c++){const ch=row[c];if(ch!=='.')rects+=`<rect x="${c}" y="${r}" width="1" height="1" fill="${I.pal[ch]}"/>`}});
+ return `<svg width="18" height="18" viewBox="0 0 8 8" shape-rendering="crispEdges" style="vertical-align:-3px">${rects}</svg>`}
+
+function msg(t){const m=$('msg');m.textContent=t;m.classList.add('show');clearTimeout(msgT);msgT=setTimeout(()=>m.classList.remove('show'),2800)}
+function hud(){const r=S.run;
+ $('score').textContent=r.score;$('mp').textContent=r.mp;$('stars').innerHTML=icon('star')+' '+S.stars;$('rank').textContent=rankOf(r.score);
+ $('place').textContent=S.loc==='hub'?'◆ 學院中庭':`◆ 第${S.loc+1}塔 · ${TOWERS[S.loc].name}（${TOWERS[S.loc].mage}）`;
+ const doneCount=TOWERS.filter((_,i)=>towerDone(i)).length;
+ $('towers').innerHTML=TOWERS.map((T,i)=>{const st=r.status[i];const done=towerDone(i);
+   const cls=done?'ok':(st==='remain'?'remain':'todo');
+   const lab=done?'已通過':(st==='remain'?'殘卷待補練':st==='todo'?'未攻破':'待完成試煉場');
+   return `<div class="trow"><span class="sq ${cls}"></span><span>第${i+1}塔　${esc(T.mage)}</span><span class="tiny">${lab}</span></div>`}).join('')+`<p class="tiny">已通過 ${doneCount} / 5 座塔</p>`;
+ $('spells').innerHTML=SPELLS.map((sp,i)=>{const on=r.spells[i];
+   return `<div class="spell ${on?'on':''}"><b>${sp.name}</b>　<span class="tiny">${on?'可施放':'通過第'+(i+1)+'塔後習得'}</span><div class="tiny">試煉中：${esc(sp.quiz)}<br>試煉場：${esc(sp.mini)}</div></div>`}).join('')}
+function checkUnlocks(){const r=S.run;const got=[];
+ for(let i=0;i<5;i++){if(!r.spells[i]&&towerDone(i)){r.spells[i]=true;got.push(SPELLS[i].name)}}
+ if(got.length)msg('習得魔法：'+got.join('、')+'。可在試煉中施放！');
+ save();hud()}
+
+// ===== 移動與互動 =====
+function grid(){return S.loc==='hub'?HUB:TGRID[S.loc]}
+function isOpen(){return !$('modal').hidden||!$('mini').hidden}
+function move(dx,dy){if(titleOpen||isOpen()||Q)return;
+ face=dx<0?'left':dx>0?'right':dy<0?'up':'down';
+ const g=grid(),nx=S.x+dx,ny=S.y+dy;
+ if(ny<0||ny>=g.length||nx<0||nx>=g[0].length)return;
+ const ch=g[ny][nx];if(ch==='#')return;
+ frame^=1;
+ if(S.loc==='hub'&&/[1-5]/.test(ch)){const t=+ch-1;
+   if(t>0&&!towerDone(t-1)){msg(`城門封鎖中：需先通過第${t}座塔。`);return}
+   S.x=nx;S.y=ny;enterTower(t);return}
+ if(S.loc==='hub'&&ch==='X'){S.x=nx;S.y=ny;save();showSummary(false);return}
+ if(S.loc!=='hub'&&ch==='G'){const t=S.loc;S.loc='hub';S.x=1+2*t;S.y=1;save();hud();msg('回到學院中庭。');return}
+ S.x=nx;S.y=ny;
+ if(S.loc!=='hub'&&ch==='A'){save();hud();altar(S.loc);return}
+ if(S.loc!=='hub'&&ch==='M'){save();hud();openMini(S.loc);return}
+ save();hud()}
+function enterTower(t){S.loc=t;S.x=6;S.y=9;save();hud();msg(`踏入第${t+1}塔：${TOWERS[t].name}。守塔法師在祭壇等你。`)}
+function altar(t){const st=S.run.status[t];
+ if(st==='todo')startQuiz(t,'main');
+ else if(st==='remain')startQuiz(t,'repair');
+ else msg('這座塔的祭壇試煉已經完成。')}
+
+// ===== 守塔試煉（題目）=====
+function pickQ(t,mode,exclude){const all=TOWERS[t].qs.map((q,i)=>({q,i,id:t+'-'+i}));
+ let pool=all.filter(x=>x.id!==exclude);
+ if(mode==='repair')pool=pool.filter(x=>x.id!==S.run.remainId[t]);
+ if(!pool.length)pool=all;
+ return pool[Math.floor(Math.random()*pool.length)]}
+function startQuiz(t,mode){const r=S.run;const p=pickQ(t,mode);
+ const resolved=r.status.filter(s=>s!=='todo').length;
+ const auto=mode==='main'&&resolved===4&&!r.doubleUsed;
+ Q={t,mode,id:p.id,q:p.q,dbl:auto,locked:false,order:shuffle(p.q[1].map((_,i)=>i)),gone:[],used:{},showHint:false,shield:false,eye:false};
+ renderQ();$('modal').hidden=false}
+function spellBar(){const r=S.run;if(!r.spells.some(Boolean))return'';
+ return `<div class="spellbar"><span class="tiny">魔法（${r.mp} MP）</span>${SPELLS.map((sp,i)=>r.spells[i]?
+   `<button class="btn sp" ${Q.used[i]||Q.locked||r.mp<SPELL_COST?'disabled':''} onclick="castQuiz(${i})">${sp.name}<small>${SPELL_COST} MP・${esc(sp.quiz)}</small></button>`:'').join('')}</div>`}
+function renderQ(){const T=TOWERS[Q.t],q=Q.q,r=S.run;
+ const fig=q[3]?`<div class="fig">${SHAPES[q[3]]}</div>`:'';
+ let top;
+ if(Q.mode==='main'){
+   top=`<div class="row"><span class="tiny">四選一 · 選出正確的咒語元素</span>${
+     r.doubleUsed?'<span class="badge">魔力爆發卷軸已使用</span>'
+     :`<button id="dbl" class="btn ${Q.dbl?'primary':''}" ${Q.locked?'disabled':''} onclick="toggleDbl()">${Q.dbl?'⚡ 本題爆發已啟用':'⚡ 使用魔力爆發卷軸 ×1'}</button>`}</div>`;
+   if(Q.showHint)top+=`<div class="hint">魔法線索：${esc(T.hint)}</div>`;
+ }else{
+   top=`<div class="hint">殘卷補練・魔法線索：${esc(T.hint)}<br>${esc(T.ask)}</div>`;
+ }
+ const opts=Q.order.map((oi,pos)=>{const gone=Q.gone.includes(oi);
+   return `<button class="opt ${gone?'gone':''}" data-o="${oi}" ${gone?'disabled':''} onclick="answer(${oi})"><span class="lt">${'ABCD'[pos]}</span>${esc(Q.q[1][oi])}</button>`}).join('');
+ $('box').innerHTML=`<div class="qtop"><canvas class="pt" width="80" height="80" data-t="${Q.t}"></canvas>
+  <div><div class="bars"><span></span><span class="n"></span><span></span></div>
+  <span class="tag">${Q.mode==='main'?'守塔試煉':'殘卷補練'}</span>
+  <div class="tname">第${Q.t+1}塔 · ${esc(T.name)}</div><div class="mage">${esc(T.mage)}</div></div></div>
+  ${top}${spellBar()}${fig}<h2>${esc(q[0])}</h2><div class="opts">${opts}</div><div id="fb" aria-live="polite"></div>`;
+ document.querySelectorAll('canvas.pt').forEach(c=>drawPortrait(c,+c.dataset.t))}
+function toggleDbl(){if(!Q||Q.locked||S.run.doubleUsed)return;Q.dbl=!Q.dbl;renderQ()}
+function castQuiz(i){const r=S.run;
+ if(!Q||Q.locked||Q.used[i]||!r.spells[i]||r.mp<SPELL_COST)return;
+ r.mp-=SPELL_COST;Q.used[i]=true;
+ if(i===0){const wrong=Q.order.filter(oi=>oi!==Q.q[2]&&!Q.gone.includes(oi));
+   if(wrong.length)Q.gone.push(wrong[Math.floor(Math.random()*wrong.length)]);msg('直線結界劃去了一個錯誤選項。')}
+ if(i===1){Q.showHint=true;msg('數字透視：魔法線索已顯現。')}
+ if(i===2){Q.shield=true;msg('鏡像護盾已展開。')}
+ if(i===3){const p=pickQ(Q.t,Q.mode,Q.id);Q.id=p.id;Q.q=p.q;Q.order=shuffle(p.q[1].map((_,k)=>k));Q.gone=[];msg('幻影分身：題目已更換。')}
+ if(i===4){Q.eye=true;msg('真相之眼：本題答對將額外獲得 10 魔力。')}
+ save();hud();renderQ()}
+function answer(oi){if(!Q||Q.locked)return;Q.locked=true;
+ const r=S.run,t=Q.t,T=TOWERS[t],ok=oi===Q.q[2];let pts=0,blocked=false;
+ if(Q.mode==='main'){
+   pts=ok?(Q.dbl?40:20):0;r.score+=pts;if(ok)r.base+=20;if(ok&&Q.dbl)r.bonus+=20;
+   if(ok&&Q.eye){pts+=10;r.score+=10;r.bonus+=10}
+   if(Q.dbl)r.doubleUsed=true;
+   if(ok){r.status[t]='clear';r.mp+=10}
+   else if(Q.shield){blocked=true}
+   else{r.status[t]='remain';r.remainId[t]=Q.id}
+ }else{
+   if(ok){pts=10;r.score+=10;r.repair+=10;r.status[t]='done';r.mp+=5}
+ }
+ r.records.push({time:new Date().toISOString(),student:S.student||'',tower:t+1,tower_name:T.name,mage:T.mage,
+   mode:Q.mode,question_id:Q.id,question:Q.q[0],options:Q.q[1].join(' | '),chosen:Q.q[1][oi],correct_answer:Q.q[1][Q.q[2]],
+   ok,double:!!(Q.dbl&&Q.mode==='main'),points:pts});
+ document.querySelectorAll('#box .opt').forEach(b=>{b.disabled=true;const o=+b.dataset.o;
+   if(o===Q.q[2])b.classList.add('correct');else if(o===oi)b.classList.add('wrong')});
+ document.querySelectorAll('#box .btn').forEach(b=>b.disabled=true);
+ const head=Q.mode==='main'
+   ?(ok?'咒語成功！法陣亮起來了！':(blocked?'鏡像護盾擋下了反噬，祭壇仍然亮著，可以再挑戰。':'咒語反噬，留下一張殘卷，之後可以回來補練。'))
+   :(ok?'殘卷補練成功，魔力回收！':'還不夠穩，殘卷仍留在祭壇上。');
+ $('fb').innerHTML=`<div class="feedback ${ok?'ok':'no'}"><b>${head}</b>${pts?`<br>魔力 +${pts}`:''}${ok?'<br>法力 +'+(Q.mode==='main'?10:5):''}<br>正確元素：${esc(Q.q[1][Q.q[2]])}<br>${esc(T.hint)}<br>${esc(T.ask)}</div>
+  <button class="btn primary" onclick="closeQuiz()">繼續前進 →</button>`;
+ $('score').textContent=r.score;$('mp').textContent=r.mp;save()}
+function closeQuiz(){Q=null;$('modal').hidden=true;checkUnlocks();
+ const r=S.run;
+ if(!r.finished&&allDone()){finish()}
+ else{save();hud()}}
+function finish(){const r=S.run;r.finished=true;
+ if(!r.awarded){r.coins=coinsOf(r.score);S.stars+=r.coins;r.awarded=true}
+ save();hud();showSummary(true)}
+
+// ===== 試煉場：圖形雨與閃躲陣 =====
+function openMini(t){
+ if(S.run.mini[t]){msg('這座塔的試煉場已經完成了。');return}
+ const kind=t===1?'rain':'dodge';
+ MG={t,kind,phase:'ready',dir:0,px:MG_W/2,lives:3,score:0,time:0,items:[],spawnT:0.6,slowT:0,shield:false,inv:0,used:{},
+   target:3+Math.floor(Math.random()*4),lastTs:0,eye:false};
+ $('mtitle').textContent=kind==='rain'?'圖形雨・接住指定的圖形':'閃躲陣・躲開菱形怪';
+ $('mrule').textContent=kind==='rain'
+   ?`畫面上方會落下各種多邊形。接住「${NUM[MG.target]}邊形」，接滿 8 個即過關；接到其他圖形會扣一條命，共 3 條命。請數一數邊數再判斷。`
+   :'菱形怪碰到你會扣一條命（四邊都相等，但角不一定相等）。其他形狀是無害的精靈，可以安全通過。存活 30 秒即過關。';
+ $('mstart').hidden=false;$('mctl').hidden=false;$('mres').hidden=true;$('mres').innerHTML='';
+ $('mini').hidden=false;miniSpellsRender();miniPaint()}
+function miniStart(){if(!MG||MG.phase!=='ready')return;MG.phase='run';$('mstart').hidden=true;MG.lastTs=0;requestAnimationFrame(miniFrame)}
+function miniFrame(ts){if(!MG||MG.phase!=='run')return;
+ if(!MG.lastTs)MG.lastTs=ts;const dt=Math.min(.05,(ts-MG.lastTs)/1000);MG.lastTs=ts;
+ miniStep(dt);miniPaint();miniSpellsRender();
+ if(MG&&MG.phase==='run')requestAnimationFrame(miniFrame)}
+function hurt(){if(MG.inv>0)return;
+ if(MG.shield){MG.shield=false;msg('鏡像護盾擋下了這一次！');return}
+ MG.lives--;MG.inv=1}
+function miniStep(dt){const g=MG;const f=g.slowT>0?0.5:1;
+ if(g.slowT>0)g.slowT-=dt;if(g.inv>0)g.inv-=dt;
+ g.time+=dt;
+ g.px=Math.max(24,Math.min(MG_W-24,g.px+g.dir*260*dt));
+ g.spawnT-=dt;
+ if(g.spawnT<=0){
+   if(g.kind==='rain'){
+     let n=3+Math.floor(Math.random()*4);if(Math.random()<.4)n=g.target;
+     g.items.push({x:30+Math.random()*(MG_W-60),y:-20,n,ok:n===g.target,vy:80+g.time*3});
+     g.spawnT=Math.max(.45,.9-g.time*.01);
+   }else{
+     const safe=['square','tri','hex','rect'];
+     const type=Math.random()<.45?'rhombus':safe[Math.floor(Math.random()*safe.length)];
+     g.items.push({x:30+Math.random()*(MG_W-60),y:-30,type,vy:110+g.time*2.5});
+     g.spawnT=Math.max(.35,.75-g.time*.008);
+   }}
+ const py=MG_H-48;
+ g.items.forEach(it=>{it.y+=it.vy*dt*f});
+ g.items=g.items.filter(it=>{
+   if(g.kind==='rain'){
+     if(it.y>MG_H-100&&it.y<MG_H-30&&Math.abs(it.x-g.px)<36){
+       if(it.ok)g.score++;else hurt();
+       return false}
+     return it.y<MG_H+30}
+   else{
+     if(it.type==='rhombus'&&Math.abs(it.x-g.px)<28&&Math.abs(it.y-py)<30){hurt();return false}
+     return it.y<MG_H+40}
+ });
+ if(g.kind==='rain'&&g.score>=8){endMini(true);return}
+ if(g.kind==='dodge'&&g.time>=30){endMini(true);return}
+ if(g.lives<=0)endMini(false)}
+function miniSpellsRender(){const r=S.run;
+ if(!MG){$('mspells').innerHTML='';return}
+ $('mspells').innerHTML=SPELLS.map((sp,i)=>r.spells[i]?
+   `<button class="btn sp" ${MG.used[i]||MG.phase!=='run'||r.mp<SPELL_COST?'disabled':''} onclick="castMini(${i})">${sp.name}<small>${SPELL_COST} MP・${esc(sp.mini)}</small></button>`:'').join('')}
+function castMini(i){const g=MG,r=S.run;
+ if(!g||g.phase!=='run'||g.used[i]||!r.spells[i]||r.mp<SPELL_COST)return;
+ r.mp-=SPELL_COST;g.used[i]=true;
+ if(i===0){if(g.kind==='rain')g.items=g.items.filter(it=>it.ok);else g.items=g.items.filter(it=>it.type!=='rhombus');msg('直線結界：清除了場上的干擾。')}
+ if(i===1){g.slowT=4;msg('數字透視：時序減緩 4 秒。')}
+ if(i===2){g.shield=true;msg('鏡像護盾已展開。')}
+ if(i===3){g.inv=3;msg('幻影分身：短暫無敵 3 秒。')}
+ if(i===4){g.eye=true;msg('真相之眼：挑戰成功將額外獲得 20 魔力。')}
+ save();hud();miniSpellsRender()}
+function endMini(win){const g=MG;g.phase='end';const r=S.run,t=g.t;
+ const pts=win?30+(g.eye?20:0):0;
+ if(win){r.mini[t]=true;r.score+=pts;r.minipts+=pts;r.mp+=10}
+ r.records.push({time:new Date().toISOString(),student:S.student||'',tower:t+1,tower_name:TOWERS[t].name,mage:TOWERS[t].mage,mode:'mini',
+   question_id:'mini-'+g.kind+'-'+t,question:g.kind==='rain'?`圖形雨：接住${NUM[g.target]}邊形`:'閃躲陣：躲開菱形怪',
+   options:'',chosen:g.kind==='rain'?`接住 ${g.score}/8`:`存活 ${Math.min(30,Math.floor(g.time))} 秒`,
+   correct_answer:g.kind==='rain'?'接滿 8 個':'存活 30 秒',ok:win,double:false,points:pts});
+ checkUnlocks();
+ $('mstart').hidden=true;$('mctl').hidden=true;miniSpellsRender();miniPaint();
+ $('mres').hidden=false;
+ $('mres').innerHTML=win
+   ?`<p><b>試煉成功！</b>獲得魔力 +${pts}，法力 +10。</p><button class="btn primary" onclick="closeMini()">回到學院</button>`
+   :`<p><b>這次沒有成功。</b>再試一次看看吧。</p><button class="btn primary" onclick="openMini(${t})">再挑戰</button><button class="btn" onclick="closeMini()">離開</button>`;
+ save()}
+function closeMini(){$('mini').hidden=true;MG=null;save();hud();
+ if(!S.run.finished&&allDone())finish()}
+
+function drawMonster(c,x,y,type){
+ if(type==='rhombus'){
+   c.fillStyle='#b5485a';c.strokeStyle='#0d0b1f';c.lineWidth=2;
+   c.beginPath();c.moveTo(x,y-20);c.lineTo(x+14,y);c.lineTo(x,y+20);c.lineTo(x-14,y);c.closePath();c.fill();c.stroke();
+   c.fillStyle='#fff3b0';c.fillRect(x-6,y-3,4,4);c.fillRect(x+2,y-3,4,4)}
+ else if(type==='square'){c.fillStyle='#6fd0b0';c.strokeStyle='#0d0b1f';c.lineWidth=2;c.fillRect(x-16,y-16,32,32);c.strokeRect(x-16,y-16,32,32)}
+ else if(type==='tri'){c.fillStyle='#f2c46b';c.strokeStyle='#0d0b1f';c.lineWidth=2;polyPath(c,x,y,3,19,0);c.fill();c.stroke()}
+ else if(type==='hex'){c.fillStyle='#7fb8f0';c.strokeStyle='#0d0b1f';c.lineWidth=2;polyPath(c,x,y,6,18,0);c.fill();c.stroke()}
+ else{c.fillStyle='#8c8fc9';c.strokeStyle='#0d0b1f';c.lineWidth=2;c.fillRect(x-24,y-14,48,28);c.strokeRect(x-24,y-14,48,28)}}
+function miniPaint(){const c=$('mc').getContext('2d');c.imageSmoothingEnabled=false;
+ c.fillStyle='#0d0b1f';c.fillRect(0,0,MG_W,MG_H);
+ c.strokeStyle='rgba(242,196,107,.07)';c.lineWidth=1;
+ for(let x=0;x<MG_W;x+=24){c.beginPath();c.moveTo(x+.5,0);c.lineTo(x+.5,MG_H);c.stroke()}
+ for(let y=0;y<MG_H;y+=24){c.beginPath();c.moveTo(0,y+.5);c.lineTo(MG_W,y+.5);c.stroke()}
+ c.fillStyle='#1d1748';c.fillRect(0,MG_H-24,MG_W,24);
+ if(!MG)return;
+ if(MG.slowT>0){c.fillStyle='rgba(91,63,160,.15)';c.fillRect(0,0,MG_W,MG_H)}
+ MG.items.forEach(it=>{
+   if(MG.kind==='rain'){c.fillStyle='#8fd8c8';c.strokeStyle='#0d0b1f';c.lineWidth=2;polyPath(c,it.x,it.y,it.n,17,0);c.fill();c.stroke()}
+   else drawMonster(c,it.x,it.y,it.type)});
+ const blink=MG.inv>0&&Math.floor(MG.inv*8)%2===0;
+ if(!blink)drawSprite(c,3,MG.px-24,MG_H-72,MAGE_ROWS,MAGE_PAL,0);
+ if(MG.shield){c.strokeStyle='#6fd0b0';c.lineWidth=3;c.beginPath();c.arc(MG.px,MG_H-48,36,0,Math.PI*2);c.stroke()}
+ c.fillStyle='#f08ab0';c.font='bold 16px "Noto Sans TC",sans-serif';c.textAlign='left';c.fillText('♥'.repeat(Math.max(0,MG.lives)),12,26);
+ c.fillStyle='#f2c46b';c.textAlign='right';
+ c.fillText(MG.kind==='rain'?`${MG.score} / 8`:`${Math.max(0,Math.ceil(30-MG.time))} 秒`,MG_W-12,26);
+ if(MG.phase==='ready'){c.fillStyle='rgba(13,11,31,.55)';c.fillRect(0,0,MG_W,MG_H);c.fillStyle='#f2c46b';c.font='bold 20px "Noto Sans TC",sans-serif';c.textAlign='center';c.fillText('按「開始挑戰」',MG_W/2,MG_H/2)}
+ if(MG.phase==='end'){c.fillStyle='rgba(13,11,31,.6)';c.fillRect(0,0,MG_W,MG_H);c.fillStyle=MG.result?'#6fd0b0':'#d07a62';c.font='bold 24px "Noto Sans TC",sans-serif';c.textAlign='center';c.fillText(MG.result?'過關！':'失敗',MG_W/2,MG_H/2)}
+ $('mstat').textContent=`法力 ${S.run.mp} MP`}
+['mleft','mright'].forEach((id,i)=>{const b=$(id);const d=i?1:-1;
+ b.addEventListener('pointerdown',()=>{if(MG)MG.dir=d});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{if(MG)MG.dir=0}))});
+$('mc').addEventListener('pointermove',e=>{if(!MG||MG.phase!=='run')return;const rc=$('mc').getBoundingClientRect();MG.px=(e.clientX-rc.left)*(MG_W/rc.width)});
+
+// ===== 紀錄之碑：成果與匯出 =====
+function showSummary(final){const r=S.run;
+ const rows=TOWERS.map((T,i)=>{const m=mastery(i);const mini=MINI_ON[i]?(r.mini[i]?'✅ 過關':'🔒 未完成'):'—';
+   return `<tr><td>${i+1}. ${esc(T.mage)}（${esc(T.name)}）</td><td>${m}</td><td>${mini}</td><td class="tiny">${m.includes('再複習')?esc(T.ask):'—'}</td></tr>`}).join('');
+ const wrong=r.records.filter(x=>x.mode==='main'&&!x.ok).map(x=>`<div class="feedback no"><b>${esc(x.question)}</b><br>你施放的元素：${esc(x.chosen)}<br>正確元素：${esc(x.correct_answer)}</div>`).join('');
+ const stars=r.awarded?`<p>本次試煉獲得 ${r.coins} 顆魔法星晶，目前共有 ${S.stars} 顆。</p>`:(final?'':'<p class="tiny">通過五座塔後會結算星晶。</p>');
+ const fb=final?`<h3>出口回饋（法師誓言）</h3><p>用自己的話說說：怎麼判斷一個圖形是不是正多邊形？</p><textarea placeholder="我會先＿＿，再＿＿，所以＿＿。"></textarea><p class="tiny">寫在學習單或說給老師聽（此欄不會儲存）。</p>`:'';
+ $('box').innerHTML=`<div class="sum"><span class="tag">${final?'徽章鑄成':'紀錄之碑'}</span> <span class="tiny">${esc(S.student||'未填寫')}</span>
+  <h1>${r.score}<small> 分</small></h1><p>${rankOf(r.score)}　基本魔力 ${r.base} ＋ 爆發加成 ${r.bonus} ＋ 殘卷補練 ${r.repair} ＋ 試煉場 ${r.minipts}</p>
+  ${stars}<h3>五位法師的掌握表</h3><table><tr><th>守塔法師（塔）</th><th>祭壇試煉</th><th>試煉場</th><th>下次可以這樣請精靈e度</th></tr>${rows}</table>
+  ${wrong}${fb}
+  <div class="btns"><button class="btn" onclick="exportJSON()">匯出 JSON</button><button class="btn" onclick="exportCSV()">匯出 CSV</button><button class="btn" onclick="closeModal()">${final?'回學院中庭':'關閉'}</button><button class="btn" onclick="confirmReset()">再闖一次</button></div></div>`;
+ $('modal').hidden=false}
+function closeModal(){$('modal').hidden=true}
+function confirmReset(){if(!confirm('重新開始本次試煉？魔法星晶會保留。'))return;
+ S.run=fresh();S.loc='hub';S.x=7;S.y=7;Q=null;MG=null;$('modal').hidden=true;$('mini').hidden=true;save();hud();msg('新的試煉開始了。走向上方的塔門，依序踏入第一座塔。')}
+function fname(ext){const who=(S.student||'anon').replace(/[^\w一-鿿-]/g,'_');return `polygon-magic-${who}-${new Date().toISOString().slice(0,10)}.${ext}`}
+function download(name,type,text,bom){const blob=new Blob([(bom?'﻿':'')+text],{type});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+ setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function exportJSON(){const r=S.run;
+ const data={app:'多邊形魔法學院・象數試煉',exportedAt:new Date().toISOString(),student:S.student||null,
+  run:{started:r.started,finished:!!r.finished,score:r.score,base:r.base,bonus:r.bonus,repair:r.repair,minipts:r.minipts,mp:r.mp,stars_earned:r.coins||0,
+   towers:TOWERS.map((T,i)=>({tower:i+1,name:T.name,mage:T.mage,status:r.status[i],mastery:mastery(i),
+     mini_cleared:MINI_ON[i]?!!r.mini[i]:null,passed:towerDone(i)})),
+   spells_unlocked:SPELLS.filter((_,i)=>r.spells[i]).map(s=>s.name)},
+  records:r.records};
+ download(fname('json'),'application/json',JSON.stringify(data,null,2),false)}
+function exportCSV(){const cols=['time','student','tower','tower_name','mage','mode','question_id','question','options','chosen','correct_answer','ok','double','points'];
+ const q=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+ const lines=[cols.join(',')].concat(S.run.records.map(x=>cols.map(c=>q(c==='ok'||c==='double'?(x[c]?1:0):x[c])).join(',')));
+ download(fname('csv'),'text/csv',lines.join('\r\n'),true)}
+
+// ===== 守塔法師立繪 =====
+function drawPortrait(cv,t){const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
+ c.fillStyle='#0d0b1f';c.fillRect(0,0,80,80);
+ c.strokeStyle='rgba(242,196,107,.28)';c.lineWidth=1;c.beginPath();c.arc(40,40,34,0,Math.PI*2);c.stroke();
+ c.beginPath();c.arc(40,40,26,0,Math.PI*2);c.stroke();
+ const pal={...MAGE_PAL,...PORT[t]};
+ if(t===3){c.globalAlpha=.28;drawSprite(c,5,-10,6,MAGE_ROWS,pal);c.globalAlpha=1}
+ drawSprite(c,5,0,0,MAGE_ROWS,pal);
+ if(t===0){R(c,5,0,0,14,5,1,10,'#d9dde8');for(let k=0;k<4;k++)R(c,5,0,0,13,6+k*2,1,1,'#0d0b1f')}
+ if(t===1){c.fillStyle='#f2c46b';c.font='bold 13px sans-serif';c.textAlign='center';c.fillText('3',10,18);c.fillText('6',68,26);R(c,5,0,0,1,10,2,2,'#fff3b0')}
+ if(t===2){R(c,5,0,0,2,9,12,1,'#c8f0ec');R(c,5,0,0,1,10,3,1,'#c8f0ec');R(c,5,0,0,12,10,3,1,'#c8f0ec');R(c,5,0,0,7,5,2,5,'#c8f0ec')}
+ if(t===3){R(c,5,0,0,0,9,2,6,'rgba(195,180,255,.5)');R(c,5,0,0,14,9,2,6,'rgba(195,180,255,.5)')}
+ if(t===4){R(c,5,0,0,11,10,4,3,'#f3e6d0');R(c,5,0,0,11,10,1,3,'#8a5a1e');R(c,5,0,0,1,1,2,2,'#fff3b0')}}
+
+// ===== 遊戲畫面 =====
+const cv=$('cv'),ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+function drawGame(){const g=grid();const W=g[0].length*TS,H=g.length*TS;
+ if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;ctx.imageSmoothingEnabled=false}
+ ctx.fillStyle='#0d0b1f';ctx.fillRect(0,0,W,H);
+ if(S.loc==='hub'){ctx.save();ctx.translate(7*TS+TS/2,4*TS+TS/2);ctx.strokeStyle='rgba(242,196,107,.16)';ctx.lineWidth=1.5;ctx.setLineDash([2,6]);
+   [96,144].forEach(r=>{ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke()});
+   ctx.setLineDash([]);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.fillStyle='rgba(242,196,107,.2)';ctx.fillRect(100,-1,40,2);ctx.restore()}
+   ctx.restore()}
+ for(let y=0;y<g.length;y++)for(let x=0;x<g[0].length;x++){const ch=g[y][x],bx=x*TS,by=y*TS;
+   if(ch==='#')drawWall(bx,by,x,y);else drawFloor(bx,by,x,y,S.loc==='hub');
+   if(S.loc==='hub'&&/[1-5]/.test(ch))drawGateTile(bx,by,+ch-1);
+   else if(ch==='X')drawStele(bx,by);
+   else if(ch==='G')drawDoor(bx,by);
+   else if(ch==='A')drawAltar(bx,by);
+   else if(ch==='M')drawMiniAltar(bx,by);
+ }
+ drawMageWorld(S.x*TS,S.y*TS)}
+
+// ===== 標題畫面 =====
+const tc=$('tc'),tx=tc.getContext('2d');tx.imageSmoothingEnabled=false;
+function drawTitle(){const W=720,H=400,now=performance.now()/1000;
+ tx.fillStyle='#0d0b1f';tx.fillRect(0,0,W,H);
+ for(let i=0;i<10;i++){tx.fillStyle=`rgba(91,63,160,${0.04+i*0.012})`;tx.fillRect(0,i*40,W,40)}
+ for(let i=0;i<80;i++){const x=Math.floor(hash(i,1,11)*W),y=Math.floor(hash(i,2,12)*250);const a=.35+.5*Math.sin(now*2+i);
+   tx.fillStyle=`rgba(255,243,176,${Math.max(.15,a)})`;tx.fillRect(x,y,2,2)}
+ tx.fillStyle='#f3e6d0';tx.beginPath();tx.arc(620,70,26,0,Math.PI*2);tx.fill();
+ tx.fillStyle='#120e2e';tx.beginPath();tx.arc(632,62,24,0,Math.PI*2);tx.fill();
+ for(let i=0;i<7;i++){const w=96-i*10,h=34,x=360-w/2,y=340-(i+1)*h;
+   tx.fillStyle='#17123a';tx.fillRect(x,y,w,h);
+   tx.strokeStyle='#f2c46b';tx.lineWidth=2;tx.strokeRect(x+1,y+1,w-2,h-2);
+   if(i%2===0){tx.fillStyle='rgba(242,196,107,'+(0.55+0.3*Math.sin(now*2+i))+')';tx.fillRect(360-3,y+10,6,12)}}
+ tx.fillStyle='#f2c46b';tx.fillRect(357,30,6,30);tx.fillRect(352,46,16,4);
+ tx.fillStyle='#1d1748';tx.fillRect(0,350,W,50);
+ for(let i=0;i<5;i++){drawGateAt(tx,160+i*90,300,4,i,'open')}
+ drawSprite(tx,5,60,240,MAGE_ROWS,MAGE_PAL,0);
+ tx.fillStyle='#fff3b0';tx.fillRect(130,244,10,10);
+ for(let i=0;i<3;i++){const x=600,y=150+i*18;tx.fillStyle='rgba(242,196,107,.6)';
+   if(TRI[i+1][0]){tx.fillRect(x,y,30,3)}else{tx.fillRect(x,y,12,3);tx.fillRect(x+18,y,12,3)}}}
+
+// ===== 輸入 =====
+const KEYS={arrowup:[0,-1],w:[0,-1],arrowdown:[0,1],s:[0,1],arrowleft:[-1,0],a:[-1,0],arrowright:[1,0],d:[1,0]};
+document.addEventListener('keydown',e=>{if(titleOpen)return;if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+ const k=(e.key||'').toLowerCase();
+ if(!$('mini').hidden){
+   if(k==='arrowleft'||k==='a'){e.preventDefault();if(MG)MG.dir=-1}
+   else if(k==='arrowright'||k==='d'){e.preventDefault();if(MG)MG.dir=1}
+   else if(k===' '&&MG&&MG.phase==='ready'){e.preventDefault();miniStart()}
+   return}
+ const d=KEYS[k];if(!d)return;e.preventDefault();move(d[0],d[1])});
+document.addEventListener('keyup',e=>{const k=(e.key||'').toLowerCase();if(MG&&['arrowleft','a','arrowright','d'].includes(k))MG.dir=0});
+document.querySelectorAll('.pad button').forEach(b=>b.addEventListener('click',()=>move(+b.dataset.dx,+b.dataset.dy)));
+$('student').value=S.student||'';
+$('student').addEventListener('change',e=>{S.student=e.target.value.trim();save()});
+function startGame(){titleOpen=false;$('title').hidden=true;
+ if(S.run.records.length===0&&S.loc==='hub')msg('你站在學院中庭。走向上方的塔門，依序踏入第一座塔。')}
+const hasSave=S.run.records.length>0||S.loc!=='hub'||S.x!==7||S.y!==7;
+$('btnStart').textContent=hasSave?'繼續冒險':'開始冒險';
+
+// ===== 啟動 =====
+hud();
+function loop(){if(titleOpen)drawTitle();else drawGame();requestAnimationFrame(loop)}
+loop();
+</script>
+</body></html>

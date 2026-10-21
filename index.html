@@ -387,7 +387,10 @@ function drawMiniAltar(bx,by){
 const BOSS_PAL={...MAGE_PAL,H:'#d6566e',h:'#9a2f48',b:'#6a2340',g:'#f2c46b',k:'#f7d2b0'};
 function drawBossSprite(c,u,bx,by){drawSprite(c,u,bx,by,MAGE_ROWS,BOSS_PAL);
  R(c,u,bx,by,4,0,1,2,'#f2c46b');R(c,u,bx,by,11,0,1,2,'#f2c46b');R(c,u,bx,by,3,0,1,1,'#f2c46b');R(c,u,bx,by,12,0,1,1,'#f2c46b')}
-function bossGateState(){if(!fiveDone())return'lock';return S.run.boss.done?'done':'open'}
+function bossGateState(){return S.run.boss.done?'done':'open'}
+// 攻擊力 = 已通過的試煉塔數；需命中次數 = 2 + 2 ×（5 − 攻擊力）
+function passedCount(){return TOWERS.filter((_,i)=>towerDone(i)).length}
+function needHits(){return 2+2*(5-passedCount())}
 function drawBossGate(bx,by){const st=bossGateState();
  const col=st==='lock'?C.locked:(st==='open'?'#d6566e':C.mint);
  R(ctx,U,bx,by,2,1,12,2,C.stone);R(ctx,U,bx,by,2,3,2,12,C.stone);R(ctx,U,bx,by,12,3,2,12,C.stone);
@@ -414,7 +417,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuffle=a=>a.map(x=>({x,r:Math.random()})).sort((p,q)=>p.r-q.r).map(o=>o.x);
 function fresh(){return{score:0,base:0,bonus:0,repair:0,minipts:0,bosspts:0,mp:0,doubleUsed:false,
-  boss:{ch:null,built:false,step:1,done:false},
+  boss:{ch:null,built:false,hits:0,cur:null,done:false,power:null},
   status:['todo','todo','todo','todo','todo'],remainId:[null,null,null,null,null],
   mini:[false,false,false,false,false],spells:[false,false,false,false,false],
   records:[],awarded:false,coins:0,finished:false,started:new Date().toISOString()}}
@@ -427,6 +430,7 @@ function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');
      if(typeof r.minipts!=='number')r.minipts=0;
      if(typeof r.bosspts!=='number')r.bosspts=0;
      if(!r.boss||typeof r.boss!=='object')r.boss=f.boss;
+     if(typeof r.boss.hits!=='number'){r.boss.hits=r.boss.step===2?1:0;r.boss.cur=null;if(r.boss.power===undefined)r.boss.power=null}
      return d}}catch(e){}
  return{stars:0,run:fresh(),loc:'hub',x:7,y:7,student:''}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -458,7 +462,7 @@ function hud(){const r=S.run;
    const cls=done?'ok':(st==='remain'?'remain':'todo');
    const lab=done?'已通過':(st==='remain'?'殘卷待補練':st==='todo'?'未攻破':'待完成試煉場');
    return `<div class="trow"><span class="sq ${cls}"></span><span>第${i+1}塔　${esc(T.mage)}</span><span class="tiny">${lab}</span></div>`}).join('')
-   +(()=>{const b=r.boss;const lab=b.done?'已擊敗':b.built?'待挑戰角度之間':fiveDone()?'可挑戰':'未解鎖';
+   +(()=>{const b=r.boss;const lab=b.done?'已擊敗':`命中 ${Math.min(b.hits,needHits())} / ${needHits()}`;
      return `<div class="trow"><span class="sq ${b.done?'ok':'remain'}"></span><span>魔王之塔</span><span class="tiny">${lab}</span></div>`})()
    +`<p class="tiny">已通過 ${doneCount} / 5 座塔</p>`;
  $('spells').innerHTML=SPELLS.map((sp,i)=>{const on=r.spells[i];
@@ -481,8 +485,8 @@ function move(dx,dy){if(titleOpen||isOpen()||Q)return;
    if(t>0&&!towerDone(t-1)){msg(`城門封鎖中：需先通過第${t}座塔。`);return}
    S.x=nx;S.y=ny;enterTower(t);return}
  if(S.loc==='hub'&&ch==='X'){S.x=nx;S.y=ny;save();showSummary(false);return}
- if(S.loc==='hub'&&ch==='B'){if(!fiveDone()){msg('魔王之塔被封印：先通過五座塔。');return}
-   S.x=nx;S.y=ny;S.loc='boss';S.x=3;S.y=6;save();hud();msg('踏入魔王之塔。左邊是組裝之間，右邊是角度之間。');return}
+ if(S.loc==='hub'&&ch==='B'){S.loc='boss';S.x=3;S.y=6;save();hud();
+   msg(S.run.boss.done?'角度魔王已經被擊敗了。':`踏入魔王之塔。目前通過 ${passedCount()} 座試煉塔，攻擊力 ${passedCount()}/5，需要命中角度魔王 ${needHits()} 次。`);return}
  if(S.loc==='boss'){
    if(ch==='G'){S.loc='hub';S.x=12;S.y=1;save();hud();msg('回到學院中庭。');return}
    if(ch==='D'&&!S.run.boss.built){msg('角度之間的門被封印：先在組裝之間把三角形組好。');return}
@@ -748,7 +752,7 @@ function drawAngles(c,p,ch,prog,solved,now){
    const V=p[i],P=p[(i+1)%3],Q=p[(i+2)%3];
    const a1=Math.atan2(P.y-V.y,P.x-V.x),a2=Math.atan2(Q.y-V.y,Q.x-V.x);
    let d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
-   const hid=i===ch.hidden,ask=hid&&!solved;
+   const hid=ch.hide?ch.hide.includes(i):i===ch.hidden,ask=hid&&!solved;
    const col=ask?'#d6566e':(hid?C.mintD:C.violetD);
    c.strokeStyle=col;c.lineWidth=3;
    if(ch.ang[i]===90&&!ask){const l1=Math.hypot(P.x-V.x,P.y-V.y),l2=Math.hypot(Q.x-V.x,Q.y-V.y);
@@ -802,7 +806,7 @@ function b1Success(){const b=S.run.boss,r=S.run,e=exactSides(b.ch);
  B1.from=best.map(si=>({x:B1.pts[si].x*BU,y:B1.pts[si].y*BU}));B1.to=canonPts(b.ch);
  B1.phase='anim';B1.t0=performance.now();B1.parts=confetti(40);
  const s=b1Sides().map(v=>v.toFixed(1));
- b.built=true;r.score+=30;r.bosspts+=30;r.mp+=10;
+ b.built=true;b.cur=firstCur(b.ch);r.score+=30;r.bosspts+=30;r.mp+=10;
  r.records.push({time:new Date().toISOString(),student:S.student||'',tower:6,tower_name:'魔王之塔・組裝之間',mage:'破形魔王',mode:'boss1',
    question_id:'boss1-'+b.ch.ti,question:`組裝${b.ch.type}（邊長 ${b.ch.sides.join('、')}）`,options:'',
    chosen:`組出邊長 ${s.join('、')}（重新擺放 ${B1.resets} 次）`,correct_answer:b.ch.sides.join('、'),ok:true,double:false,points:30});
@@ -838,83 +842,108 @@ function closeBoss1(){const built=S.run.boss.built;$('boss1').hidden=true;B1=nul
  if(built)msg('角度之間的門打開了！往右走，找角度魔王。')}
 
 // ===== 房間二：角度之間 =====
+// 題目兩題一組：偶數次命中前出「求角度」，奇數次命中前出「分類」。第一組用組裝好的三角形，之後魔王召喚新的三角形。
 let B2=null;
 const b2c=$('b2c');
+function firstCur(ch){return{...ch,hide:[ch.hidden],asked:ch.hidden,variant:'basic',fromBuild:true}}
+function genCur(){const ti=Math.floor(Math.random()*TRI_TYPES.length),T=TRI_TYPES[ti];
+ const L=T.L[Math.floor(Math.random()*T.L.length)];
+ const mx=Math.max(...T.ang.map(a=>Math.sin(a*DEG)));
+ const ch={ti,type:T.type,ang:T.ang.slice(),L,sides:T.ang.map(a=>Math.round(L*Math.sin(a*DEG)/mx*10)/10)};
+ const a=ch.ang,equi=a[0]===a[1]&&a[1]===a[2];
+ const apex=[0,1,2].find(i=>a.filter(v=>v===a[i]).length===1);
+ const iso=!equi&&a.filter(v=>v===a[(apex+1)%3]).length===2;
+ if(equi&&Math.random()<.5){ch.variant='equi';ch.hide=[0,1,2];ch.asked=0}
+ else if(iso&&Math.random()<.5){ch.variant='iso';const base=[0,1,2].filter(i=>i!==apex);ch.hide=base;ch.asked=base[0];ch.apex=apex}
+ else{ch.variant='basic';ch.asked=Math.floor(Math.random()*3);ch.hide=[ch.asked]}
+ ch.hidden=ch.asked;return ch}
+const isAngleQ=()=>S.run.boss.hits%2===0;
 function openBoss2(){const b=S.run.boss;
  if(!b.built){msg('先在左邊的組裝之間把三角形組好。');return}
  if(b.done){msg('角度魔王已經被擊敗了。');return}
- B2={hearts:3,used:{},hint:false,shield:false,eye:false,gone:[],phase:'q',t0:0,hitT:-9,id:Date.now(),parts:[]};
- $('b2fb').innerHTML='';$('boss2').hidden=false;b2Render();b2Loop(B2.id)}
-function b2Known(ch){return[0,1,2].filter(i=>i!==ch.hidden)}
-function b2Render(){const b=S.run.boss,ch=b.ch,r=S.run;
- $('b2hearts').textContent='生命 '+'♥'.repeat(Math.max(0,B2.hearts));
- $('b2hp').style.width=b.done?'0%':b.step===1?'100%':'50%';
+ if(!b.cur)b.cur=b.hits<2?firstCur(b.ch):genCur();
+ B2={hearts:3,used:{},hint:false,shield:false,eye:false,gone:[],phase:'q',t0:0,hitT:-9,newT:-9,id:Date.now(),parts:[]};
+ $('b2fb').innerHTML='';$('boss2').hidden=false;
+ if(b.hits>=needHits()){b2Win('攻擊力大增，角度魔王一擊就倒下了！');b2Loop(B2.id);return}
+ b2Render();b2Loop(B2.id)}
+function b2Known(ch){return[0,1,2].filter(i=>!ch.hide.includes(i))}
+function b2QText(ch){const kn=b2Known(ch),q=VN[ch.asked];
+ if(ch.variant==='equi')return`這是一個正三角形，∠${q} 是幾度？`;
+ if(ch.variant==='iso')return`這是一個等腰三角形，頂角 ∠${VN[ch.apex]} = ${ch.ang[ch.apex]}°，底角 ∠${q} 是幾度？`;
+ return`已知 ∠${VN[kn[0]]} = ${ch.ang[kn[0]]}°、∠${VN[kn[1]]} = ${ch.ang[kn[1]]}°，∠${q} 是幾度？`}
+function b2HintText(ch){if(!isAngleQ())return'看最大的角。小於 90° 是銳角三角形，等於 90° 是直角三角形，大於 90° 是鈍角三角形。';
+ if(ch.variant==='equi')return'正三角形三個角一樣大，合起來是 180°。';
+ if(ch.variant==='iso')return'三角形三個內角的和是 180°，等腰三角形的兩個底角一樣大。';
+ return'三角形三個內角的和是 180°。'}
+function b2Render(){const b=S.run.boss,ch=b.cur,r=S.run,need=needHits();
+ $('b2hearts').textContent=`攻擊力 ${passedCount()}/5・已命中 ${Math.min(b.hits,need)} / ${need}　生命 `+'♥'.repeat(Math.max(0,B2.hearts));
+ $('b2hp').style.width=b.done?'0%':Math.max(0,(need-b.hits)/need*100)+'%';
  if(B2.phase==='win'){$('b2spells').innerHTML='';$('b2ctl').hidden=true;return}
  $('b2ctl').hidden=false;
  if(B2.phase==='fail'){$('b2q').innerHTML='';$('b2spells').innerHTML='';return}
- const kn=b2Known(ch),h=ch.hidden;
- let html='';
- if(b.step===1){
-   html=`<h2>已知 ∠${VN[kn[0]]} = ${ch.ang[kn[0]]}°、∠${VN[kn[1]]} = ${ch.ang[kn[1]]}°，∠${VN[h]} 是幾度？</h2>
-   ${B2.hint?'<div class="hint">魔法線索：三角形三個內角的和是 180°。</div>':''}
-   <div class="row" style="justify-content:flex-start"><span>∠${VN[h]} =</span><input id="b2in" class="numin" inputmode="numeric" maxlength="3" placeholder="?" onkeydown="if(event.key==='Enter')b2Submit()"><span>度</span><button class="btn primary" onclick="b2Submit()">施放答案</button></div>`;
+ let html;
+ if(isAngleQ()){
+   html=`<h2>${b2QText(ch)}</h2>${B2.hint?`<div class="hint">魔法線索：${b2HintText(ch)}</div>`:''}
+   <div class="row" style="justify-content:flex-start"><span>∠${VN[ch.asked]} =</span><input id="b2in" class="numin" inputmode="numeric" maxlength="3" placeholder="?" onkeydown="if(event.key==='Enter')b2Submit()"><span>度</span><button class="btn primary" onclick="b2Submit()">施放答案</button></div>`;
  }else{
-   html=`<h2>這個三角形依照角度來分類，是哪一種三角形？</h2>
-   ${B2.hint?'<div class="hint">魔法線索：看最大的角。小於 90° 是銳角三角形，等於 90° 是直角三角形，大於 90° 是鈍角三角形。</div>':''}
+   html=`<h2>這個三角形依照角度來分類，是哪一種三角形？</h2>${B2.hint?`<div class="hint">魔法線索：${b2HintText(ch)}</div>`:''}
    <div class="opts">${CLS.map((t,k)=>{const g=B2.gone.includes(k);return `<button class="opt ${g?'gone':''}" ${g?'disabled':''} onclick="b2Choose(${k})"><span class="lt">${'ABC'[k]}</span>${t}</button>`}).join('')}</div>`;
  }
  $('b2q').innerHTML=html;
  $('b2spells').innerHTML=r.spells.some(Boolean)?`<span class="tiny">魔法（${r.mp} MP）</span>`+SPELLS.map((sp,i)=>{if(!r.spells[i])return'';
-   const off=B2.used[i]||r.mp<SPELL_COST||(i===0&&b.step===1);
-   return `<button class="btn sp" ${off?'disabled':''} onclick="castBoss(${i})">${sp.name}<small>${SPELL_COST} MP・${esc(sp.boss)}</small></button>`}).join(''):'';
+   const off=B2.used[i]||r.mp<SPELL_COST||(i===0&&isAngleQ());
+   return `<button class="btn sp" ${off?'disabled':''} onclick="castBoss(${i})">${sp.name}<small>${SPELL_COST} MP・${esc(sp.boss)}</small></button>`}).join(''):'<span class="tiny">還沒有習得魔法。通過試煉塔可以習得魔法，也能提升攻擊力。</span>';
  const inp=$('b2in');if(inp)inp.focus()}
 function castBoss(i){const r=S.run,b=r.boss;
  if(!B2||B2.phase!=='q'||B2.used[i]||!r.spells[i]||r.mp<SPELL_COST)return;
- if(i===0&&b.step===1)return;
+ if(i===0&&isAngleQ())return;
  r.mp-=SPELL_COST;B2.used[i]=true;
- if(i===0){const right=CLS.indexOf(classify(b.ch));const wrong=[0,1,2].filter(k=>k!==right&&!B2.gone.includes(k));
+ if(i===0){const right=CLS.indexOf(classify(b.cur));const wrong=[0,1,2].filter(k=>k!==right&&!B2.gone.includes(k));
    if(wrong.length)B2.gone.push(wrong[Math.floor(Math.random()*wrong.length)]);msg('直線結界劃去了一個錯誤選項。')}
- if(i===1){B2.hint=true;msg('數字透視：角度提示已顯現。')}
+ if(i===1){B2.hint=true;msg('數字透視：提示已顯現。')}
  if(i===2){B2.shield=true;msg('鏡像護盾已展開，可以擋下一次答錯。')}
  if(i===3){B2.hearts++;msg('幻影分身：多獲得一顆心！')}
  if(i===4){B2.eye=true;msg('真相之眼：擊敗魔王時將額外獲得 20 魔力。')}
  save();hud();b2Render()}
 function b2Submit(){const inp=$('b2in');if(!inp)return;const v=inp.value.trim();
  if(!/^\d{1,3}$/.test(v)){msg('請輸入一個整數。');return}
- const ch=S.run.boss.ch,kn=b2Known(ch);
- b2Answer(+v===ch.ang[ch.hidden],`${v}°`,`${ch.ang[ch.hidden]}°`,`已知 ∠${VN[kn[0]]}=${ch.ang[kn[0]]}°、∠${VN[kn[1]]}=${ch.ang[kn[1]]}°，求 ∠${VN[ch.hidden]}`)}
-function b2Choose(k){const ch=S.run.boss.ch;b2Answer(CLS[k]===classify(ch),CLS[k],classify(ch),`依角度分類這個${ch.type.replace(/（.*）/,'')}`)}
+ const ch=S.run.boss.cur;b2Answer(+v===ch.ang[ch.asked],`${v}°`,`${ch.ang[ch.asked]}°`,b2QText(ch))}
+function b2Choose(k){const ch=S.run.boss.cur;b2Answer(CLS[k]===classify(ch),CLS[k],classify(ch),`依角度分類（${ch.ang.join('°、')}°）`)}
+function b2Win(text){const r=S.run,b=r.boss;
+ const bonus=30+(B2.eye?20:0);r.score+=bonus;r.bosspts+=bonus;r.mp+=10;b.done=true;b.power=passedCount();
+ B2.phase='win';B2.t0=performance.now();B2.parts=confetti(70);
+ $('b2q').innerHTML=`<div class="bigres ok">挑戰成功！</div><p class="center">${text}<br>魔力 +${bonus}，法力 +10。</p><div class="center"><button class="btn primary" onclick="closeBoss2()">回到學院</button></div>`;
+ $('b2fb').innerHTML='';save();hud();b2Render();return bonus}
 function b2Answer(ok,chosen,correct,question){if(!B2||B2.phase!=='q')return;
- const r=S.run,b=r.boss,step=b.step,pts=ok?(step===1?20:10):0;
- r.records.push({time:new Date().toISOString(),student:S.student||'',tower:6,tower_name:'魔王之塔・角度之間',mage:'角度魔王',mode:'boss2',
-   question_id:'boss2-step'+step,question,options:step===2?CLS.join(' | '):'',chosen,correct_answer:correct,ok,double:false,points:pts});
- if(ok){r.score+=pts;r.bosspts+=pts;B2.hitT=performance.now()/1000;
-   if(step===1){b.step=2;B2.hint=false;
-     $('b2fb').innerHTML=`<div class="feedback ok"><b>命中！角度魔王受到重擊！</b><br>∠${VN[b.ch.hidden]} = ${b.ch.ang[b.ch.hidden]}°，魔力 +${pts}。再答對一題就能擊敗魔王。</div>`;
-     save();hud();b2Render();return}
-   // 擊敗魔王
-   const bonus=B2.eye?20:0;r.score+=bonus;r.bosspts+=bonus;r.mp+=10;b.done=true;
-   B2.phase='win';B2.t0=performance.now();B2.parts=confetti(70);
-   $('b2q').innerHTML=`<div class="bigres ok">挑戰成功！</div><p class="center">角度魔王被擊敗了！魔力 +${pts+bonus}，法力 +10。</p><div class="center"><button class="btn primary" onclick="closeBoss2()">回到學院</button></div>`;
-   $('b2fb').innerHTML='';save();hud();b2Render();return}
- // 答錯
+ const r=S.run,b=r.boss,wasAngle=isAngleQ();
+ const rec={time:new Date().toISOString(),student:S.student||'',tower:6,tower_name:'魔王之塔・角度之間',mage:'角度魔王',mode:'boss2',
+   question_id:'boss2-h'+(b.hits+1),question,options:wasAngle?'':CLS.join(' | '),chosen,correct_answer:correct,ok,double:false,points:0};
+ r.records.push(rec);
+ if(ok){b.hits++;B2.hitT=performance.now()/1000;B2.hint=false;B2.gone=[];
+   if(b.hits>=needHits()){rec.points=b2Win('角度魔王被擊敗了！');return}
+   const left=needHits()-b.hits;
+   if(wasAngle){$('b2fb').innerHTML=`<div class="feedback ok"><b>命中！角度魔王受到攻擊！</b><br>∠${VN[b.cur.asked]} = ${b.cur.ang[b.cur.asked]}°。還要命中 ${left} 次。</div>`}
+   else{b.cur=genCur();B2.newT=performance.now()/1000;
+     $('b2fb').innerHTML=`<div class="feedback ok"><b>命中！</b>還要命中 ${left} 次。魔王召喚了新的三角形！</div>`}
+   save();hud();b2Render();return}
  let txt;
  if(B2.shield){B2.shield=false;txt='鏡像護盾擋下了魔王的反擊，沒有失去生命。'}
  else{B2.hearts--;txt='魔王反擊！失去一顆心。'}
  B2.hint=true;
  if(B2.hearts<=0){B2.phase='fail';B2.t0=performance.now();
-   $('b2fb').innerHTML=`<div class="bigres no">挑戰失敗</div><p class="center">角度魔王恢復了力量。已經答對的題目會保留，再挑戰一次吧！</p><div class="center"><button class="btn primary" onclick="openBoss2()">再挑戰</button></div>`;
+   $('b2fb').innerHTML=`<div class="bigres no">挑戰失敗</div><p class="center">角度魔王恢復了力量。已命中的 ${b.hits} 次會保留，再挑戰一次吧！<br>通過更多試煉塔可以提升攻擊力，減少需要命中的次數。</p><div class="center"><button class="btn primary" onclick="openBoss2()">再挑戰</button></div>`;
    save();hud();b2Render();return}
- $('b2fb').innerHTML=`<div class="feedback no"><b>${txt}</b><br>${step===1?'提示：三角形三個內角的和是 180°。':'提示：想一想，最大的角是幾度？'}</div>`;
+ $('b2fb').innerHTML=`<div class="feedback no"><b>${txt}</b><br>提示：${b2HintText(b.cur)}</div>`;
  save();hud();b2Render()}
 function b2Loop(id){if(!B2||B2.id!==id)return;b2Draw();requestAnimationFrame(()=>b2Loop(id))}
-function b2Draw(){const c=b2c.getContext('2d'),now=performance.now()/1000,b=S.run.boss,ch=b.ch;gridBg(c);
+function b2Draw(){const c=b2c.getContext('2d'),now=performance.now()/1000,b=S.run.boss,ch=b.cur;gridBg(c);
  const p=canonPts(ch);
  triPath(c,p);c.fillStyle='rgba(243,210,122,.3)';c.fill();c.strokeStyle=C.gold;c.lineWidth=5;c.stroke();
- drawAngles(c,p,ch,[1,1,1],b.step>1||b.done,now);vertexLabels(c,p);
- // 角度魔王
+ drawAngles(c,p,ch,[1,1,1],!isAngleQ()||b.done,now);vertexLabels(c,p);
  const hit=now-B2.hitT<.5,sx=hit?Math.round(Math.sin(now*60)*3):0;
  if(!b.done){if(hit)c.globalAlpha=.6;drawBossSprite(c,4,BW-76+sx,8);c.globalAlpha=1}
+ if(now-B2.newT<1.4&&B2.phase==='q'){c.fillStyle='rgba(214,86,110,.9)';c.fillRect(0,BH-44,BW,36);
+   c.fillStyle='#fff';c.font='bold 17px "Noto Sans TC",sans-serif';c.textAlign='center';c.fillText('魔王召喚了新的三角形！',BW/2,BH-20)}
  if(B2.phase==='win'){const el=(performance.now()-B2.t0)/1000;
    c.fillStyle=`rgba(243,210,122,${Math.max(0,.35-el*.2)})`;c.fillRect(0,0,BW,BH);
    drawConfetti(c,B2.parts,el);banner(c,'挑戰成功！','角度魔王被擊敗了',true,el)}
@@ -926,7 +955,7 @@ function closeBoss2(){$('boss2').hidden=true;B2=null;save();hud();
 function showSummary(final){const r=S.run;
  const rows=TOWERS.map((T,i)=>{const m=mastery(i);const mini=MINI_ON[i]?(r.mini[i]?'✅ 過關':'🔒 未完成'):'—';
    return `<tr><td>${i+1}. ${esc(T.mage)}（${esc(T.name)}）</td><td>${m}</td><td>${mini}</td></tr>`}).join('')
-   +`<tr><td>魔王之塔${r.boss.ch?'（'+esc(r.boss.ch.type)+'）':''}</td><td>${r.boss.built?'✅ 組裝完成':'🔒 未組裝'}</td><td>${r.boss.done?'✅ 擊敗角度魔王':'🔒 未擊敗'}</td></tr>`;
+   +`<tr><td>魔王之塔${r.boss.ch?'（'+esc(r.boss.ch.type)+'）':''}</td><td>${r.boss.built?'✅ 組裝完成':'🔒 未組裝'}</td><td>${r.boss.done?`✅ 擊敗角度魔王（攻擊力 ${r.boss.power??'—'}/5）`:`🔒 命中 ${r.boss.hits} / ${needHits()}`}</td></tr>`;
  const wrong=r.records.filter(x=>x.mode==='main'&&!x.ok).map(x=>`<div class="feedback no"><b>${esc(x.question)}</b><br>你施放的元素：${esc(x.chosen)}<br>正確元素：${esc(x.correct_answer)}</div>`).join('');
  const stars=r.awarded?`<p>本次試煉獲得 ${r.coins} 顆魔法星晶，目前共有 ${S.stars} 顆。</p>`:(final?'':'<p class="tiny">通過五座塔後會結算星晶。</p>');
  const fb=final?`<h3>出口回饋（法師誓言）</h3><p>用自己的話說說：怎麼判斷一個圖形是不是正多邊形？</p><textarea placeholder="我會先＿＿，再＿＿，所以＿＿。"></textarea><p class="tiny">寫在學習單或說給老師聽（此欄不會儲存）。</p>`:'';
@@ -952,7 +981,8 @@ function exportJSON(){const r=S.run;
    spells_unlocked:SPELLS.filter((_,i)=>r.spells[i]).map(s=>s.name),
    bosspts:r.bosspts,
    boss:r.boss.ch?{triangle_type:r.boss.ch.type,target_sides:r.boss.ch.sides,angles:{A:r.boss.ch.ang[0],B:r.boss.ch.ang[1],C:r.boss.ch.ang[2]},
-     hidden_vertex:VN[r.boss.ch.hidden],built:r.boss.built,angle_step:r.boss.step,defeated:r.boss.done}:{built:false,defeated:false}},
+     hidden_vertex:VN[r.boss.ch.hidden],built:r.boss.built,hits:r.boss.hits,hits_needed_now:needHits(),
+     power_at_defeat:r.boss.power,defeated:r.boss.done}:{built:false,hits:r.boss.hits,hits_needed_now:needHits(),defeated:false}},
   records:r.records};
  download(fname('json'),'application/json',JSON.stringify(data,null,2),false)}
 function exportCSV(){const cols=['time','student','tower','tower_name','mage','mode','question_id','question','options','chosen','correct_answer','ok','double','points'];
